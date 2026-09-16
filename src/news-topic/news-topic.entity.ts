@@ -2,14 +2,11 @@ import {
     Column,
     CreateDateColumn,
     Entity,
-    JoinTable,
-    ManyToMany,
     PrimaryGeneratedColumn,
     UpdateDateColumn
 } from "typeorm";
-import {NewsSubscription} from "../news-subscription/news-subscription.entity";
 
-@Entity('news-topic')
+@Entity('news_topic')
 export class NewsTopic {
     @PrimaryGeneratedColumn({name: 'id'})
     id: number;
@@ -23,13 +20,7 @@ export class NewsTopic {
     @Column({name: 'isActive', default: true, unique: false})
     isActive: boolean;
 
-    @ManyToMany((): typeof NewsSubscription => NewsSubscription)
-    @JoinTable({
-        name: 'news-topics_news-subscription',
-        joinColumn: {name: 'news-topics_id', referencedColumnName: 'id'},
-        inverseJoinColumn: {name: 'news-subscription_id', referencedColumnName: 'id'}
-    })
-    newsSubscriptions:NewsSubscription[]
+
 
     @CreateDateColumn()
     createdAt: Date;

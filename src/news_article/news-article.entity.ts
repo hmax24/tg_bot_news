@@ -7,10 +7,10 @@ import {
     PrimaryGeneratedColumn,
     UpdateDateColumn
 } from "typeorm";
-import {NewsTopic} from "../news-topic/news-topic.entity";
+import {NewsTopic} from "../news_topic/news_topic.entity";
 
-@Entity('news-article')
-export class NewsArticleEntity {
+@Entity('news_article')
+export class NewsArticle {
     @PrimaryGeneratedColumn({name: 'id'})
     id: number;
 
@@ -29,12 +29,12 @@ export class NewsArticleEntity {
     @Column({name: 'publishedAt', nullable: false, unique: false})
     publishedAt: Date
 
-    @Column({name: 'isSent', nullable: false, unique: false})
+    @Column({name: 'isSent', default: false, unique: false})
     isSent: boolean
 
     @ManyToOne((): typeof NewsTopic => NewsTopic, {nullable: false})
     @JoinColumn({
-        name: "news-topic"
+        name: "news_topic_id"
     })
     topic: NewsTopic
 

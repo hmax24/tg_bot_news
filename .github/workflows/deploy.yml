@@ -101,7 +101,16 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
         run: |
-          ssh \
+          scp \
+            -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            scripts/deploy.sh \
+            "$SSH_USER@$SSH_HOST:tg-bot-news/deploy-$GITHUB_SHA.sh"
+
+          ssh -n \
             -i "$HOME/.ssh/deploy_key" \
             -o IdentitiesOnly=yes \
             -o BatchMode=yes \
@@ -110,8 +119,7 @@ jobs:
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
             "$SSH_USER@$SSH_HOST" \
-            "bash -s -- '$GITHUB_SHA'" \
-            < scripts/deploy.sh
+            "bash \"\$HOME/tg-bot-news/deploy-$GITHUB_SHA.sh\" '$GITHUB_SHA'"
 
       - name: Remove SSH key
         if: always()

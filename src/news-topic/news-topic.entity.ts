@@ -6,15 +6,15 @@ import {
     UpdateDateColumn
 } from "typeorm";
 
-@Entity('news_topic')
+@Entity('news-topic')
 export class NewsTopic {
     @PrimaryGeneratedColumn({name: 'id'})
     id: number;
 
-    @Column({name: 'name', nullable: false, unique: false})
+    @Column({name: 'name', nullable: false, unique: true})
     name: string;
 
-    @Column({name: 'description', nullable: false, unique: false})
+    @Column({name: 'description', nullable: false, unique: false, default: ''})
     description: string
 
     @Column({name: 'isActive', default: true, unique: false})

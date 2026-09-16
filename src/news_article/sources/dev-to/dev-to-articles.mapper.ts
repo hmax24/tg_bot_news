@@ -1,6 +1,8 @@
 import {Injectable} from '@nestjs/common';
-import type {DevToArticle} from '../sources/dev-to/dev-to-article';
-import type {NewsArticleImportDto} from './news-article-import.dto';
+import type {DevToArticle} from './dev-to-article';
+import type {NewsArticleImportDto} from '../../dto/news-article-import.dto';
+import {NewsArticleDto} from "../../dto/news-article.dto";
+import {NewsArticle} from "../../news-article.entity";
 
 @Injectable()
 export class DevToArticlesMapper {

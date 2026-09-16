@@ -1,14 +1,23 @@
-import {Module} from "@nestjs/common";
-import {TelegramUsersController} from "./telegram-users.controller";
-import {TypeOrmModule} from "@nestjs/typeorm";
-import {TelegramUser} from "./telegram-user.entity";
-import {TelegramUsersService} from "./telegram-users.service";
-import {TelegramUsersRepository} from "./telegram-users.repository";
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { TelegramUser } from './telegram-user.entity';
+import { TelegramUsersController } from './telegram-users.controller';
+import { TelegramUsersRepository } from './telegram-users.repository';
+import { TelegramUsersService } from './telegram-users.service';
 
 @Module({
-    controllers:[TelegramUsersController],
-    imports:[TypeOrmModule.forFeature([TelegramUser])],
-    providers:[TelegramUsersService, TelegramUsersRepository],
-    exports:[]
+    imports: [
+        TypeOrmModule.forFeature([TelegramUser]),
+    ],
+    controllers: [
+        TelegramUsersController,
+    ],
+    providers: [
+        TelegramUsersRepository,
+        TelegramUsersService,
+    ],
+    exports: [
+        TelegramUsersService,
+    ],
 })
-export class TelegramUsersModule{}
+export class TelegramUsersModule {}

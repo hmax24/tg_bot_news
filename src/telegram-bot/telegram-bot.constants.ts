@@ -36,15 +36,3 @@ export const BOT_COMMANDS = [
         description: 'Помощь',
     },
 ];
-
-export const DEFAULT_TOPICS: string[] = [
-    'Backend',
-    'Frontend',
-    'JavaScript',
-    'TypeScript',
-    'NestJS',
-    'React',
-    'AI',
-    'DevOps',
-    'Cybersecurity',
-];

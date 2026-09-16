@@ -1,14 +1,33 @@
-import {Module} from "@nestjs/common";
-import {NewsArticlesController} from "./news_articles.controller";
-import {TypeOrmModule} from "@nestjs/typeorm";
-import {NewsArticle} from "./news_article.entity";
-import {NewsArticlesService} from "./news_articles.service";
-import {NewsArticlesRepository} from "./news_articles.repository";
+import {Module} from '@nestjs/common';
+import {TypeOrmModule} from '@nestjs/typeorm';
+
+import {NewsTopicsModule} from '../news-topic/news-topics.module';
+import {NewsArticle} from './news-article.entity';
+import {NewsArticlesController} from './news-articles.controller';
+import {NewsArticlesRepository} from './news-articles.repository';
+import {NewsArticlesService} from './news-articles.service';
+import {DevToClient} from './sources/dev-to/dev-to-client';
+import {DevToArticlesMapper} from './sources/dev-to/dev-to-articles.mapper';
+import {NewsArticlesMapper} from "./dto/news-articles.mapper";
+import {NewsArticlesImport} from "./news-articles.import";
 
 @Module({
-    controllers:[NewsArticlesController],
-    imports:[TypeOrmModule.forFeature([NewsArticle])],
-    providers:[NewsArticlesService,NewsArticlesRepository],
-    exports:[]
+    imports: [
+        TypeOrmModule.forFeature([NewsArticle]),
+        NewsTopicsModule,
+    ],
+    controllers: [
+        NewsArticlesController,
+    ],
+    providers: [
+        NewsArticlesService,
+        NewsArticlesRepository,
+        NewsArticlesImport,
+        DevToClient,
+        DevToArticlesMapper,
+        NewsArticlesMapper
+    ],
+    exports: [NewsArticlesService],
 })
-export class NewsArticlesModule{}
+export class NewsArticlesModule {
+}

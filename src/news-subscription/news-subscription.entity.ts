@@ -7,10 +7,10 @@ import {
     PrimaryGeneratedColumn,
     UpdateDateColumn
 } from "typeorm";
-import {TelegramUser} from "../telegram_user/telegram-user.entity";
-import {NewsTopic} from "../news_topic/news-topic.entity";
+import {TelegramUser} from "../telegram-user/telegram-user.entity";
+import {NewsTopic} from "../news-topic/news-topic.entity";
 
-@Entity('news_subscription')
+@Entity('news-subscription')
 export class NewsSubscription {
     @PrimaryGeneratedColumn({name: 'id'})
     id: number;
@@ -24,10 +24,16 @@ export class NewsSubscription {
     @ManyToMany((): typeof NewsTopic => NewsTopic)
     @JoinTable({
         name: 'news_subscription_news_topics',
-        joinColumn: {name: 'news_subscription_id', referencedColumnName: 'id'},
-        inverseJoinColumn: {name: 'news_topic_id', referencedColumnName: 'id'}
+        joinColumn: {
+            name: 'news_subscription_id',
+            referencedColumnName: 'id'
+        },
+        inverseJoinColumn: {
+            name: 'news_topic_id',
+            referencedColumnName: 'id'
+        }
     })
-    newsTopics:NewsTopic[]
+    newsTopics: NewsTopic[]
 
     @Column({name: 'isActive', default: true, unique: false})
     isActive: boolean;

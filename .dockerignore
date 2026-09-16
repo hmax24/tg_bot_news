@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.idea
+.vscode
+coverage
+.env
+.env.*
+*.log
+tg-bot-news-*.tar.gz

@@ -1,15 +1,24 @@
 import {Injectable, OnModuleInit} from '@nestjs/common';
 import {InjectBot} from 'nestjs-telegraf';
 import {Telegraf} from 'telegraf';
-import {BOT_COMMANDS, DEFAULT_TOPICS} from './telegram-bot.constants';
+import {BOT_COMMANDS} from './telegram-bot.constants';
+import {NewsArticlesFormatter} from "./formatters/news-articles.formatter";
+import {NewsArticlesService} from "../news_article/news-articles.service";
+import {NewsArticleDto} from "../news_article/dto/news-article.dto";
+import {NewsTopicsService} from "../news-topic/news-topics.service";
+import {NewsSubscriptionService} from "../news-subscription/news-subscription.service";
+import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit {
-    private readonly userSubscriptions = new Map<string, Set<string>>();
 
     constructor(
         @InjectBot()
         private readonly bot: Telegraf,
+        private readonly newsArticlesService: NewsArticlesService,
+        private readonly newsArticlesFormatter: NewsArticlesFormatter,
+        private readonly newsTopicsService: NewsTopicsService,
+        private readonly newsSubscriptionService: NewsSubscriptionService,
     ) {
     }
 
@@ -42,90 +51,89 @@ export class TelegramBotService implements OnModuleInit {
 `;
     }
 
-    getTopics(): string[] {
-        return DEFAULT_TOPICS;
+    async getTopics(): Promise<NewsTopicDto[]> {
+        return this.newsTopicsService.getAllActive();
     }
 
-    getUserSubscriptions(telegramId: string): string[] {
-        const subscriptions = this.userSubscriptions.get(telegramId);
-
-        if (!subscriptions) {
-            return [];
-        }
-
-        return Array.from(subscriptions);
+    async getUserSubscriptions(
+        telegramId: string,
+    ): Promise<NewsTopicDto[]> {
+        return this.newsSubscriptionService.getSubscribedTopics(
+            telegramId,
+        );
     }
 
-    subscribeToTopic(telegramId: string, topic: string): string {
-        if (!this.isTopicExists(topic)) {
-            return `Тема "${topic}" не найдена.`;
-        }
+    async subscribeToTopic(
+        telegramId: string,
+        topicId: number,
+    ): Promise<string> {
+        await this.newsSubscriptionService.subscribe(
+            telegramId,
+            topicId,
+        );
 
-        let subscriptions = this.userSubscriptions.get(telegramId);
-
-        if (!subscriptions) {
-            subscriptions = new Set<string>();
-            this.userSubscriptions.set(telegramId, subscriptions);
-        }
-
-        if (subscriptions.has(topic)) {
-            return `Ты уже подписан на тему: ${topic}`;
-        }
-
-        subscriptions.add(topic);
-
-        return `Ты подписался на тему: ${topic}`;
+        return 'Подписка сохранена.';
     }
 
-    unsubscribeFromTopic(telegramId: string, topic: string): string {
-        const subscriptions = this.userSubscriptions.get(telegramId);
+    async unsubscribeFromTopic(
+        telegramId: string,
+        topicId: number,
+    ): Promise<string> {
+        await this.newsSubscriptionService.unsubscribe(
+            telegramId,
+            topicId,
+        );
 
-        if (!subscriptions || subscriptions.size === 0) {
-            return 'У тебя пока нет активных подписок.';
-        }
-
-        if (!subscriptions.has(topic)) {
-            return `Ты не был подписан на тему: ${topic}`;
-        }
-
-        subscriptions.delete(topic);
-
-        if (subscriptions.size === 0) {
-            this.userSubscriptions.delete(telegramId);
-        }
-
-        return `Ты отписался от темы: ${topic}`;
+        return 'Подписка на тему отключена.';
     }
 
-    getMySubscriptionsMessage(telegramId: string): string {
-        const subscriptions = this.getUserSubscriptions(telegramId);
+    async getMySubscriptionsMessage(
+        telegramId: string,
+    ): Promise<string> {
+        const topics: NewsTopicDto[] =
+            await this.getUserSubscriptions(telegramId);
 
-        if (subscriptions.length === 0) {
-            return 'У тебя пока нет подписок. Нажми "📰 Темы новостей" и выбери интересующие темы.';
+        if (topics.length === 0) {
+            return 'У тебя пока нет подписок. Открой «📰 Темы новостей».';
         }
 
-        return `
-Твои подписки:
+        const names: string = topics
+            .map(
+                (topic: NewsTopicDto): string => `✅ ${topic.name}`,
+            )
+            .join('\n');
 
-${subscriptions.map((topic) => `✅ ${topic}`).join('\n')}
-`;
+        return `Твои подписки:\n\n${names}`;
     }
 
-    getUnsubscribeMessage(telegramId: string): string {
-        const subscriptions = this.getUserSubscriptions(telegramId);
+    async getLatestNewsMessages(
+        telegramId: string,
+    ): Promise<string[]> {
+        const topics: NewsTopicDto[] =
+            await this.getUserSubscriptions(telegramId);
 
-        if (subscriptions.length === 0) {
-            return 'У тебя пока нет подписок, от которых можно отписаться.';
+        if (topics.length === 0) {
+            return [
+                'Сначала выбери интересующие темы в разделе «📰 Темы новостей».',
+            ];
         }
 
-        return 'Выбери тему, от которой хочешь отписаться:';
-    }
+        const topicIds: number[] = topics.map(
+            (topic: NewsTopicDto): number => topic.id,
+        );
 
-    getLatestNewsMessage(): string {
-        return 'Пока новости не подключены. Позже здесь будут последние IT-новости по твоим темам.';
-    }
+        const articles: NewsArticleDto[] =
+            await this.newsArticlesService.getLatestArticlesByTopicIds(
+                topicIds,
+            );
 
-    private isTopicExists(topic: string): boolean {
-        return DEFAULT_TOPICS.includes(topic);
+        if (articles.length === 0) {
+            return ['По твоим подпискам пока нет сохранённых публикаций.'];
+        }
+
+        return articles.map(
+            (article: NewsArticleDto): string =>
+                this.newsArticlesFormatter.format(article),
+        );
     }
 }

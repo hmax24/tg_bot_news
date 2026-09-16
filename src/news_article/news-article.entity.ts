@@ -2,12 +2,12 @@ import {
     Column,
     CreateDateColumn,
     Entity,
-    JoinColumn,
-    ManyToOne,
+    JoinTable,
+    ManyToMany,
     PrimaryGeneratedColumn,
     UpdateDateColumn
 } from "typeorm";
-import {NewsTopic} from "../news_topic/news_topic.entity";
+import {NewsTopic} from "../news-topic/news-topic.entity";
 
 @Entity('news_article')
 export class NewsArticle {
@@ -17,7 +17,7 @@ export class NewsArticle {
     @Column({name: 'title', nullable: false, unique: false})
     title: string
 
-    @Column({name: 'description', nullable: false, unique: false})
+    @Column({name: 'description', nullable: true, unique: false})
     description: string
 
     @Column({name: 'url', nullable: false, unique: true})
@@ -32,11 +32,19 @@ export class NewsArticle {
     @Column({name: 'isSent', default: false, unique: false})
     isSent: boolean
 
-    @ManyToOne((): typeof NewsTopic => NewsTopic, {nullable: false})
-    @JoinColumn({
-        name: "news_topic_id"
+    @ManyToMany((): typeof NewsTopic => NewsTopic)
+    @JoinTable({
+        name: 'news_article_topics',
+        joinColumn: {
+            name: 'news_article_id',
+            referencedColumnName: 'id',
+        },
+        inverseJoinColumn: {
+            name: 'news_topic_id',
+            referencedColumnName: 'id',
+        },
     })
-    topic: NewsTopic
+    topics: NewsTopic[];
 
     @CreateDateColumn()
     createdAt: Date;

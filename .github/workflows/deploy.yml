@@ -94,7 +94,9 @@ jobs:
           chmod 600 "$HOME/.ssh/deploy_key" "$HOME/.ssh/known_hosts"
 
       - name: Validate deployment script
-        run: bash -n scripts/deploy.sh
+        run: |
+          bash -n scripts/deploy.sh
+          bash -n scripts/cleanup.sh
 
       - name: Deploy to DigitalOcean
         env:
@@ -110,6 +112,15 @@ jobs:
             scripts/deploy.sh \
             "$SSH_USER@$SSH_HOST:tg-bot-news/deploy-$GITHUB_SHA.sh"
 
+          scp \
+            -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            scripts/cleanup.sh \
+            "$SSH_USER@$SSH_HOST:tg-bot-news/cleanup-$GITHUB_SHA.sh"
+
           ssh -n \
             -i "$HOME/.ssh/deploy_key" \
             -o IdentitiesOnly=yes \
@@ -120,6 +131,22 @@ jobs:
             -o ServerAliveCountMax=4 \
             "$SSH_USER@$SSH_HOST" \
             "bash \"\$HOME/tg-bot-news/deploy-$GITHUB_SHA.sh\" '$GITHUB_SHA'"
+
+      - name: Clean old images and backups
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          ssh -n \
+            -i "$HOME/.ssh/deploy_key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
+            "$SSH_USER@$SSH_HOST" \
+            "bash \"\$HOME/tg-bot-news/cleanup-$GITHUB_SHA.sh\" --apply"
 
       - name: Remove SSH key
         if: always()

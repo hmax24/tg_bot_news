@@ -7,6 +7,7 @@ RUN npm ci
 
 COPY nest-cli.json tsconfig.json tsconfig.build.json ./
 COPY src ./src
+COPY test ./test
 
 RUN npm run build
 

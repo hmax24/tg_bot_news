@@ -5,6 +5,7 @@ import { NewsArticle } from '../news_article/news-article.entity';
 import { NewsSubscription } from '../news-subscription/news-subscription.entity';
 import { NewsTopic } from '../news-topic/news-topic.entity';
 import { TelegramUser } from '../telegram-user/telegram-user.entity';
+import {NewsBroadcast} from "../news-broadcast/news-broadcast.entity";
 
 export function createDatabaseConfig(
     configService: ConfigService,
@@ -22,7 +23,13 @@ export function createDatabaseConfig(
         username: configService.getOrThrow<string>('DB_USERNAME'),
         password: configService.getOrThrow<string>('DB_PASSWORD'),
         database: configService.getOrThrow<string>('DB_DATABASE'),
-        entities: [NewsArticle, NewsSubscription, NewsTopic, TelegramUser],
+        entities: [
+            NewsArticle,
+            NewsSubscription,
+            NewsTopic,
+            TelegramUser,
+            NewsBroadcast,
+        ],
         migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
         synchronize: false,
         migrationsRun: false,

@@ -1,5 +1,5 @@
 import {Injectable} from '@nestjs/common';
-import {EntityManager, Repository} from 'typeorm';
+import {EntityManager, InsertResult, Repository} from 'typeorm';
 import {NewsArticle} from './news-article.entity';
 import {InjectRepository} from "@nestjs/typeorm";
 
@@ -36,28 +36,52 @@ export class NewsArticlesRepository {
     async saveImported(
         article: NewsArticle,
         manager: EntityManager,
-    ): Promise<NewsArticle> {
+    ): Promise<NewsArticle | null> {
         const repository: Repository<NewsArticle> =
             manager.getRepository(NewsArticle);
 
-        await repository.upsert(
-            {
+        const result: InsertResult = await repository
+            .createQueryBuilder()
+            .insert()
+            .values({
                 title: article.title,
                 description: article.description,
                 url: article.url,
                 sourceName: article.sourceName,
                 publishedAt: article.publishedAt,
-            },
-            ['url'],
-        );
+            })
+            .orIgnore()
+            .returning(['id'])
+            .execute();
 
-        const savedArticle: NewsArticle =
-            await repository.findOneByOrFail({
-                url: article.url,
-            });
+        const insertedRows: unknown = result.raw;
 
-        savedArticle.topics = article.topics;
+        const created: boolean =
+            Array.isArray(insertedRows) &&
+            insertedRows.length > 0;
 
-        return repository.save(savedArticle);
+        if (!created) {
+            return null;
+        }
+
+        return repository.findOneByOrFail({
+            url: article.url,
+        });
+    }
+
+    async addTopics(
+        articleId: number,
+        topicIds: number[],
+        manager: EntityManager,
+    ): Promise<void> {
+        if (topicIds.length === 0) {
+            return;
+        }
+
+        await manager
+            .createQueryBuilder()
+            .relation(NewsArticle, 'topics')
+            .of(articleId)
+            .add(topicIds);
     }
 }

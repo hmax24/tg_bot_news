@@ -1,8 +1,8 @@
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
-import { NewsSubscriptionRepository } from './news-subscription.repository';
-import { NewsSubscription } from './news-subscription.entity';
-import { NewsTopic } from '../news-topic/news-topic.entity';
-import { TelegramUser } from '../telegram-user/telegram-user.entity';
+import { NewsSubscriptionRepository } from '../../src/news-subscription/news-subscription.repository';
+import { NewsSubscription } from '../../src/news-subscription/news-subscription.entity';
+import { NewsTopic } from '../../src/news-topic/news-topic.entity';
+import { TelegramUser } from '../../src/telegram-user/telegram-user.entity';
 
 class MetadataDataSource extends DataSource {
     async prepareMetadata(): Promise<void> {

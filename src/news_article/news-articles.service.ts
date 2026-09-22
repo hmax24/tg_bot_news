@@ -10,7 +10,8 @@ import type {DevToArticle} from './sources/dev-to/dev-to-article';
 import type {NewsArticleImportDto} from './dto/news-article-import.dto';
 import {DevToArticlesMapper} from './sources/dev-to/dev-to-articles.mapper';
 import {NewsArticlesMapper} from './dto/news-articles.mapper';
-import type { NewsArticleDto } from './dto/news-article.dto'
+import type {NewsArticleDto} from './dto/news-article.dto'
+import {NewsBroadcastService} from "../news-broadcast/news-broadcast.service";
 
 @Injectable()
 export class NewsArticlesService {
@@ -21,6 +22,7 @@ export class NewsArticlesService {
         private readonly newsArticlesMapper: NewsArticlesMapper,
         private readonly newsTopicsService: NewsTopicsService,
         private readonly newsArticlesRepository: NewsArticlesRepository,
+        private readonly newsBroadcastService: NewsBroadcastService,
     ) {
     }
 
@@ -51,9 +53,12 @@ export class NewsArticlesService {
         ) {
             const dto: NewsArticleImportDto = articles[index];
 
-            await this.saveImportedArticle(dto);
+            const created: boolean =
+                await this.saveImportedArticle(dto);
 
-            processedCount++;
+            if (created) {
+                processedCount++;
+            }
         }
 
         return processedCount;
@@ -61,22 +66,44 @@ export class NewsArticlesService {
 
     private async saveImportedArticle(
         dto: NewsArticleImportDto,
-    ): Promise<void> {
-        await this.dataSource.transaction(
-            async (manager: EntityManager): Promise<void> => {
+    ): Promise<boolean> {
+        return this.dataSource.transaction(
+            async (manager: EntityManager): Promise<boolean> => {
+                const article: NewsArticle =
+                    this.newsArticlesMapper.mapToEntity(dto, []);
+
+                const savedArticle: NewsArticle | null =
+                    await this.newsArticlesRepository.saveImported(
+                        article,
+                        manager,
+                    );
+
+                if (savedArticle === null) {
+                    return false;
+                }
+
                 const topics: NewsTopic[] =
                     await this.newsTopicsService.getOrCreateByNames(
                         dto.topicNames,
                         manager,
                     );
 
-                const article: NewsArticle =
-                    this.newsArticlesMapper.mapToEntity(dto, topics);
+                const topicIds: number[] = topics.map(
+                    (topic: NewsTopic): number => topic.id,
+                );
 
-                await this.newsArticlesRepository.saveImported(
-                    article,
+                await this.newsArticlesRepository.addTopics(
+                    savedArticle.id,
+                    topicIds,
                     manager,
                 );
+
+                await this.newsBroadcastService.createForArticle(
+                    savedArticle.id,
+                    manager,
+                );
+
+                return true;
             },
         );
     }

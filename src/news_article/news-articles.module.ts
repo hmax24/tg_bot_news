@@ -10,11 +10,13 @@ import {DevToClient} from './sources/dev-to/dev-to-client';
 import {DevToArticlesMapper} from './sources/dev-to/dev-to-articles.mapper';
 import {NewsArticlesMapper} from "./dto/news-articles.mapper";
 import {NewsArticlesImport} from "./news-articles.import";
+import {NewsBroadcastModule} from "../news-broadcast/news-broadcast.module";
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([NewsArticle]),
         NewsTopicsModule,
+        NewsBroadcastModule,
     ],
     controllers: [
         NewsArticlesController,

@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
-import { createDatabaseConfig } from './database.config';
+import { createDatabaseConfig } from '../../src/database/database.config';
 import type { DataSourceOptions } from 'typeorm';
+import {NewsBroadcast} from "../../src/news-broadcast/news-broadcast.entity";
 
 function config(port: string = '5432'): ConfigService {
     const service: ConfigService = new ConfigService({
@@ -15,7 +16,8 @@ describe('Database configuration', (): void => {
     it('uses environment settings and never changes schema on startup', (): void => {
         const options: DataSourceOptions = createDatabaseConfig(config());
         expect(options).toMatchObject({ type: 'postgres', username: 'test', database: 'test', synchronize: false, migrationsRun: false });
-        expect(options.entities).toHaveLength(4);
+        expect(options.entities).toHaveLength(5);
+        expect(options.entities).toContain(NewsBroadcast);
     });
 
     it.each(['0', '65536', '-1', 'abc', '5432.5'])('rejects invalid port %s', (port: string): void => {

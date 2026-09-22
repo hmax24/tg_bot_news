@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, EntityManager } from 'typeorm';
-import { NewsSubscriptionService } from './news-subscription.service';
-import { NewsSubscriptionRepository } from './news-subscription.repository';
-import { TelegramUsersService } from '../telegram-user/telegram-users.service';
-import { NewsTopicsService } from '../news-topic/news-topics.service';
-import { NewsTopicsMapper } from '../news-topic/dto/news-topics.mapper';
+import { NewsSubscriptionService } from '../../src/news-subscription/news-subscription.service';
+import { NewsSubscriptionRepository } from '../../src/news-subscription/news-subscription.repository';
+import { TelegramUsersService } from '../../src/telegram-user/telegram-users.service';
+import { NewsTopicsService } from '../../src/news-topic/news-topics.service';
+import { NewsTopicsMapper } from '../../src/news-topic/dto/news-topics.mapper';
 
 describe('Unsubscribe unknown user', (): void => {
     it('does not create a user or write a subscription', async (): Promise<void> => {

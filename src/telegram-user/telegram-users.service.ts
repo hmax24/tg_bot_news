@@ -39,4 +39,8 @@ export class TelegramUsersService {
 
         return user;
     }
+
+    async getMaxId(manager: EntityManager): Promise<number> {
+        return this.repository.findMaxId(manager);
+    }
 }

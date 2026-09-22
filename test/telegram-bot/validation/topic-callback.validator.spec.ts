@@ -1,4 +1,4 @@
-import { TopicCallbackValidator } from './topic-callback.validator';
+import { TopicCallbackValidator } from '../../../src/telegram-bot/validation/topic-callback.validator';
 
 describe('TopicCallbackValidator', (): void => {
     it.each(['1', '2147483647'])('accepts PostgreSQL ID %s', (value: string): void => {

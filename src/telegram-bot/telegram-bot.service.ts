@@ -79,12 +79,27 @@ export class TelegramBotService implements OnModuleInit {
         telegramId: string,
         topicId: number,
     ): Promise<string> {
+        const topics: NewsTopicDto[] =
+            await this.newsSubscriptionService.getSubscribedTopics(
+                telegramId,
+            );
+
+        const topic: NewsTopicDto | undefined = topics.find(
+            (item: NewsTopicDto): boolean => item.id === topicId,
+        );
+
         await this.newsSubscriptionService.unsubscribe(
             telegramId,
             topicId,
         );
 
-        return 'Подписка на тему отключена.';
+        if (topic === undefined) {
+            return 'Активной подписки на эту тему уже нет.';
+        }
+
+        const topicName: string = topic.name;
+
+        return `Подписка на тему «${topicName}» отключена.`;
     }
 
     async getMySubscriptionsMessage(

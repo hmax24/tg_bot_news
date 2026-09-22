@@ -43,4 +43,21 @@ export class TelegramUsersRepository {
             ? manager.getRepository(TelegramUser)
             : this.repository;
     }
+
+    async findMaxId(manager: EntityManager): Promise<number> {
+        const repository: Repository<TelegramUser> =
+            this.getRepository(manager);
+
+        const user: TelegramUser | null = await repository.findOne({
+            select: {
+                id: true,
+            },
+            where: {},
+            order: {
+                id: 'DESC',
+            },
+        });
+
+        return user?.id ?? 0;
+    }
 }

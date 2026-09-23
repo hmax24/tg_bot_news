@@ -19,8 +19,13 @@ export class NewsTopicsService {
     ): Promise<NewsTopic[]> {
         const normalizedNames: string[] = [];
 
-        for (const name of names) {
-            const normalizedName:string = name.trim().toLowerCase();
+        for (
+            let index: number = 0;
+            index < names.length;
+            index++
+        ) {
+            const name: string = names[index];
+            const normalizedName: string = name.trim().toLowerCase();
 
             if (
                 normalizedName.length > 0 &&

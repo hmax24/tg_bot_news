@@ -12,6 +12,7 @@ export class DevToClient {
                 {
                     headers: {
                         Accept: 'application/vnd.forem.api-v1+json',
+                        'Accept-Encoding': 'identity',
                     },
                     params: { page: 1, per_page: 20 },
                     timeout: 10_000,

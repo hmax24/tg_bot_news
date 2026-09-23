@@ -2,11 +2,14 @@ import {BOT_BUTTONS, CALLBACK_PREFIXES} from './telegram-bot.constants';
 import type {
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    ReplyKeyboardMarkup,
 } from 'telegraf/types';
 import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';
 
 export class TelegramBotKeyboards {
-    static getMainMenuKeyboard() {
+    static getMainMenuKeyboard(): {
+        reply_markup: ReplyKeyboardMarkup;
+    }  {
         return {
             reply_markup: {
                 keyboard: [
@@ -29,26 +32,40 @@ export class TelegramBotKeyboards {
         topics: NewsTopicDto[],
         subscribedTopicIds: number[] = [],
     ): { reply_markup: InlineKeyboardMarkup } {
-        const buttons: InlineKeyboardButton[][] = topics.map(
-            (topic: NewsTopicDto): InlineKeyboardButton[] => {
-                const isSubscribed: boolean =
-                    subscribedTopicIds.includes(topic.id);
+        const columns: number = 3;
+        const rows: InlineKeyboardButton[][] = [];
 
-                return [
-                    {
+        for (
+            let index: number = 0;
+            index < topics.length;
+            index += columns
+        ) {
+            const rowTopics: NewsTopicDto[] = topics.slice(
+                index,
+                index + columns,
+            );
+
+            const row: InlineKeyboardButton[] = rowTopics.map(
+                (topic: NewsTopicDto): InlineKeyboardButton => {
+                    const isSubscribed: boolean =
+                        subscribedTopicIds.includes(topic.id);
+
+                    return {
                         text: isSubscribed
                             ? `✅ ${topic.name}`
                             : topic.name,
                         callback_data:
                             `${CALLBACK_PREFIXES.SUBSCRIBE_TOPIC}${topic.id}`,
-                    },
-                ];
-            },
-        );
+                    };
+                },
+            );
+
+            rows.push(row);
+        }
 
         return {
             reply_markup: {
-                inline_keyboard: buttons,
+                inline_keyboard: rows,
             },
         };
     }

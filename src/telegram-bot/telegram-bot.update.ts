@@ -18,8 +18,8 @@ export class TelegramBotUpdate {
         new Logger(TelegramBotUpdate.name);
 
     @Start()
-    async start(@Ctx() ctx: Context) {
-        const firstName = ctx.from?.first_name;
+    async start(@Ctx() ctx: Context): Promise<void> {
+        const firstName: string | undefined = ctx.from?.first_name;
 
         await ctx.reply(
             this.telegramBotService.getWelcomeMessage(firstName),
@@ -28,7 +28,7 @@ export class TelegramBotUpdate {
     }
 
     @Help()
-    async help(@Ctx() ctx: Context) {
+    async help(@Ctx() ctx: Context): Promise<void> {
         await ctx.reply(
             this.telegramBotService.getHelpMessage(),
             TelegramBotKeyboards.getMainMenuKeyboard(),
@@ -159,22 +159,22 @@ export class TelegramBotUpdate {
     }
 
     @Hears(BOT_BUTTONS.TOPICS)
-    async topicsButton(@Ctx() ctx: Context) {
+    async topicsButton(@Ctx() ctx: Context): Promise<void> {
         await this.topics(ctx);
     }
 
     @Hears(BOT_BUTTONS.MY_SUBSCRIPTIONS)
-    async mySubscriptionsButton(@Ctx() ctx: Context) {
+    async mySubscriptionsButton(@Ctx() ctx: Context): Promise<void> {
         await this.mySubscriptions(ctx);
     }
 
     @Hears(BOT_BUTTONS.UNSUBSCRIBE)
-    async unsubscribeButton(@Ctx() ctx: Context) {
+    async unsubscribeButton(@Ctx() ctx: Context): Promise<void> {
         await this.unsubscribe(ctx);
     }
 
     @Hears(BOT_BUTTONS.HELP)
-    async helpButton(@Ctx() ctx: Context) {
+    async helpButton(@Ctx() ctx: Context): Promise<void> {
         await this.help(ctx);
     }
 
@@ -267,7 +267,8 @@ export class TelegramBotUpdate {
     }
 
     private getCallbackData(ctx: Context): string | null {
-        const callbackQuery = ctx.callbackQuery;
+        const callbackQuery: Context['callbackQuery'] =
+            ctx.callbackQuery;
 
         if (!callbackQuery || !('data' in callbackQuery)) {
             return null;

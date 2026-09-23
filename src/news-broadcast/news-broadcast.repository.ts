@@ -33,7 +33,9 @@ export class NewsBroadcastRepository {
                 status: NewsBroadcastStatus.PENDING,
             },
             relations: {
-                article: true,
+                article: {
+                    topics: true,
+                },
             },
             order: {
                 id: 'ASC',

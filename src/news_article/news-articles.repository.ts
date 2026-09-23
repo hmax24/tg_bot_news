@@ -21,9 +21,12 @@ export class NewsArticlesRepository {
 
         return this.repository
             .createQueryBuilder('article')
-            .innerJoin('article.topics', 'topic')
-            .where('topic.id IN (:...topicIds)', { topicIds })
-            .andWhere('topic.isActive = :isActive', {
+            .innerJoin('article.topics', 'subscriptionTopic')
+            .leftJoinAndSelect('article.topics', 'articleTopic')
+            .where('subscriptionTopic.id IN (:...topicIds)', {
+                topicIds,
+            })
+            .andWhere('subscriptionTopic.isActive = :isActive', {
                 isActive: true,
             })
             .distinct(true)

@@ -32,8 +32,6 @@ import {ScheduleModule} from "@nestjs/schedule";
         }),
         TelegramBotModule,
     ],
-    controllers: [],
-    providers: [],
 })
 
 export class AppModule {

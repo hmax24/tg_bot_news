@@ -2,7 +2,7 @@ import {Injectable, OnModuleInit} from '@nestjs/common';
 import {InjectBot} from 'nestjs-telegraf';
 import {Telegraf} from 'telegraf';
 import {BOT_COMMANDS} from './telegram-bot.constants';
-import {NewsArticlesFormatter} from "./formatters/news-articles.formatter";
+import {NewsArticlesFormatter} from "../telegram-messaging/formatters/news-articles.formatter";
 import {NewsArticlesService} from "../news_article/news-articles.service";
 import {NewsArticleDto} from "../news_article/dto/news-article.dto";
 import {NewsTopicsService} from "../news-topic/news-topics.service";
@@ -22,7 +22,7 @@ export class TelegramBotService implements OnModuleInit {
     ) {
     }
 
-    async onModuleInit() {
+    async onModuleInit(): Promise<void> {
         await this.bot.telegram.setMyCommands(BOT_COMMANDS);
     }
 
@@ -67,39 +67,30 @@ export class TelegramBotService implements OnModuleInit {
         telegramId: string,
         topicId: number,
     ): Promise<string> {
-        await this.newsSubscriptionService.subscribe(
-            telegramId,
-            topicId,
-        );
+        const topic: NewsTopicDto =
+            await this.newsSubscriptionService.subscribe(
+                telegramId,
+                topicId,
+            );
 
-        return 'Подписка сохранена.';
+        return `Подписка на тему «${topic.name}» сохранена.`;
     }
 
     async unsubscribeFromTopic(
         telegramId: string,
         topicId: number,
     ): Promise<string> {
-        const topics: NewsTopicDto[] =
-            await this.newsSubscriptionService.getSubscribedTopics(
+        const topic: NewsTopicDto | null =
+            await this.newsSubscriptionService.unsubscribe(
                 telegramId,
+                topicId,
             );
 
-        const topic: NewsTopicDto | undefined = topics.find(
-            (item: NewsTopicDto): boolean => item.id === topicId,
-        );
-
-        await this.newsSubscriptionService.unsubscribe(
-            telegramId,
-            topicId,
-        );
-
-        if (topic === undefined) {
-            return 'Активной подписки на эту тему уже нет.';
+        if (topic === null) {
+            return 'Подписки на эту тему уже нет.';
         }
 
-        const topicName: string = topic.name;
-
-        return `Подписка на тему «${topicName}» отключена.`;
+        return `Подписка на тему «${topic.name}» отключена.`;
     }
 
     async getMySubscriptionsMessage(

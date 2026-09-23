@@ -13,8 +13,9 @@ export class DevToClient {
                     headers: {
                         Accept: 'application/vnd.forem.api-v1+json',
                         'Accept-Encoding': 'identity',
+                        'Cache-Control': 'no-cache',
                     },
-                    params: { page: 1, per_page: 20 },
+                    params: { page: 1, per_page: 21 },
                     timeout: 10_000,
                 },
             );

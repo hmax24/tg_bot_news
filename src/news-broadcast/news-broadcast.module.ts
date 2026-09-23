@@ -1,17 +1,17 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import {Module} from '@nestjs/common';
+import {TypeOrmModule} from '@nestjs/typeorm';
 
-import { TelegramUsersModule } from '../telegram-user/telegram-users.module';
-import { NewsBroadcast } from './news-broadcast.entity';
-import { NewsBroadcastRepository } from './news-broadcast.repository';
-import { NewsBroadcastService } from './news-broadcast.service';
+import {TelegramUsersModule} from '../telegram-user/telegram-users.module';
+import {NewsBroadcast} from './news-broadcast.entity';
+import {NewsBroadcastRepository} from './news-broadcast.repository';
+import {NewsBroadcastService} from './news-broadcast.service';
 import {TelegramUser} from "../telegram-user/telegram-user.entity";
 import {NewsBroadcastRecipientsRepository} from "./news-broadcast-recipients.repository";
 import {TelegramMessagingModule} from "../telegram-messaging/telegram-messaging.module";
 import {NewsBroadcastProcessor} from "./news-broadcast-processor.service";
 import {NewsBroadcastJob} from "./news-broadcast.job";
-import {NewsArticlesMapper} from "../news_article/dto/news-articles.mapper";
-import {NewsArticlesFormatter} from "../telegram-bot/formatters/news-articles.formatter";
+import {TelegramFormattingModule} from "../telegram-messaging/telegram-formatting.module";
+import {NewsArticlesMappingModule} from "../news_article/dto/news-articles-mapping.module";
 
 @Module({
     imports: [
@@ -21,6 +21,8 @@ import {NewsArticlesFormatter} from "../telegram-bot/formatters/news-articles.fo
         ]),
         TelegramUsersModule,
         TelegramMessagingModule,
+        NewsArticlesMappingModule,
+        TelegramFormattingModule,
     ],
     providers: [
         NewsBroadcastRepository,
@@ -28,11 +30,10 @@ import {NewsArticlesFormatter} from "../telegram-bot/formatters/news-articles.fo
         NewsBroadcastRecipientsRepository,
         NewsBroadcastProcessor,
         NewsBroadcastJob,
-        NewsArticlesMapper,
-        NewsArticlesFormatter,
     ],
     exports: [
         NewsBroadcastService,
     ],
 })
-export class NewsBroadcastModule {}
+export class NewsBroadcastModule {
+}

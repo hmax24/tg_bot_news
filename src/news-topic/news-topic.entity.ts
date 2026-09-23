@@ -17,9 +17,12 @@ export class NewsTopic {
     @Column({name: 'description', nullable: false, unique: false, default: ''})
     description: string
 
-    @Column({name: 'isActive', default: true, unique: false})
+    @Column({
+        name: 'isActive',
+        type: 'boolean',
+        default: false,
+    })
     isActive: boolean;
-
 
 
     @CreateDateColumn()

@@ -5,6 +5,7 @@ import { NewsSubscriptionRepository } from '../../src/news-subscription/news-sub
 import { TelegramUsersService } from '../../src/telegram-user/telegram-users.service';
 import { NewsTopicsService } from '../../src/news-topic/news-topics.service';
 import { NewsTopicsMapper } from '../../src/news-topic/dto/news-topics.mapper';
+import {NewsTopicDto} from "../../src/news-topic/dto/news-topic.dto";
 
 describe('Unsubscribe unknown user', (): void => {
     it('does not create a user or write a subscription', async (): Promise<void> => {
@@ -18,7 +19,11 @@ describe('Unsubscribe unknown user', (): void => {
                 NewsSubscriptionService,
                 NewsTopicsMapper,
                 { provide: DataSource, useValue: {
-                    transaction: async (work: (manager: EntityManager) => Promise<void>): Promise<void> => work(source.manager),
+                        transaction: async (
+                            work: (
+                                manager: EntityManager,
+                            ) => Promise<NewsTopicDto | null>,
+                        ): Promise<NewsTopicDto | null> => work(source.manager),
                 } },
                 { provide: TelegramUsersService, useValue: { findByTelegramId: findUser, getOrCreateByTelegramId: createUser } },
                 { provide: NewsTopicsService, useValue: {} },
@@ -27,7 +32,10 @@ describe('Unsubscribe unknown user', (): void => {
         }).compile();
         try {
             const service: NewsSubscriptionService = module.get(NewsSubscriptionService);
-            await service.unsubscribe('12345', 1);
+            const result: NewsTopicDto | null =
+                await service.unsubscribe('12345', 1);
+
+            expect(result).toBeNull();
             expect(findUser).toHaveBeenCalledWith('12345', source.manager);
             expect(createUser).not.toHaveBeenCalled();
             expect(findSubscription).not.toHaveBeenCalled();

@@ -29,9 +29,6 @@ export class NewsArticle {
     @Column({name: 'publishedAt', nullable: false, unique: false})
     publishedAt: Date
 
-    @Column({name: 'isSent', default: false, unique: false})
-    isSent: boolean
-
     @ManyToMany((): typeof NewsTopic => NewsTopic)
     @JoinTable({
         name: 'news_article_topics',

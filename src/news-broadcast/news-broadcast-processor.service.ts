@@ -7,7 +7,7 @@ import type { NewsBroadcastRecipientDto } from './dto/news-broadcast-recipient.d
 
 import { NewsArticlesMapper } from '../news_article/dto/news-articles.mapper';
 import type { NewsArticleDto } from '../news_article/dto/news-article.dto';
-import { NewsArticlesFormatter } from '../telegram-bot/formatters/news-articles.formatter';
+import { NewsArticlesFormatter } from '../telegram-messaging/formatters/news-articles.formatter';
 import { TelegramMessageSender } from '../telegram-messaging/telegram-message-sender.service';
 
 @Injectable()

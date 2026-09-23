@@ -23,9 +23,9 @@ export class NewsSubscriptionService {
     async subscribe(
         telegramId: string,
         topicId: number,
-    ): Promise<void> {
-        await this.dataSource.transaction(
-            async (manager: EntityManager): Promise<void> => {
+    ): Promise<NewsTopicDto> {
+        return this.dataSource.transaction(
+            async (manager: EntityManager): Promise<NewsTopicDto> => {
                 const topic: NewsTopic =
                     await this.topicsService.getActiveById(
                         topicId,
@@ -79,6 +79,8 @@ export class NewsSubscriptionService {
                     subscription,
                     manager,
                 );
+
+                return this.topicsMapper.mapToDto(topic)
             },
         );
     }
@@ -86,9 +88,11 @@ export class NewsSubscriptionService {
     async unsubscribe(
         telegramId: string,
         topicId: number,
-    ): Promise<void> {
-        await this.dataSource.transaction(
-            async (manager: EntityManager): Promise<void> => {
+    ): Promise<NewsTopicDto | null> {
+        return this.dataSource.transaction(
+            async (
+                manager: EntityManager,
+            ): Promise<NewsTopicDto | null> => {
                 const user: TelegramUser | null =
                     await this.usersService.findByTelegramId(
                         telegramId,
@@ -96,7 +100,7 @@ export class NewsSubscriptionService {
                     );
 
                 if (user === null) {
-                    return;
+                    return null;
                 }
 
                 if (!user.isActive) {
@@ -110,7 +114,7 @@ export class NewsSubscriptionService {
                     );
 
                 if (lockedSubscription === null) {
-                    return;
+                    return null;
                 }
 
                 const subscription: NewsSubscription =
@@ -118,6 +122,16 @@ export class NewsSubscriptionService {
                         lockedSubscription.id,
                         manager,
                     );
+
+                const removedTopic: NewsTopic | undefined =
+                    subscription.newsTopics.find(
+                        (topic: NewsTopic): boolean =>
+                            topic.id === topicId,
+                    );
+
+                if (removedTopic === undefined) {
+                    return null;
+                }
 
                 subscription.newsTopics =
                     subscription.newsTopics.filter(
@@ -133,6 +147,8 @@ export class NewsSubscriptionService {
                     subscription,
                     manager,
                 );
+
+                return this.topicsMapper.mapToDto(removedTopic);
             },
         );
     }

@@ -7,17 +7,12 @@ import { NewsSubscriptionRepository } from './news-subscription.repository';
 import { NewsSubscriptionService } from './news-subscription.service';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([NewsSubscription]),
-        TelegramUsersModule,
-        NewsTopicsModule,
-    ],
-    providers: [
-        NewsSubscriptionRepository,
-        NewsSubscriptionService,
-    ],
-    exports: [
-        NewsSubscriptionService,
-    ],
+  imports: [
+    TypeOrmModule.forFeature([NewsSubscription]),
+    TelegramUsersModule,
+    NewsTopicsModule,
+  ],
+  providers: [NewsSubscriptionRepository, NewsSubscriptionService],
+  exports: [NewsSubscriptionService],
 })
 export class NewsSubscriptionsModule {}

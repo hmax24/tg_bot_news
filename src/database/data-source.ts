@@ -6,10 +6,12 @@ import { DataSource } from 'typeorm';
 import { createDatabaseConfig } from './database.config';
 
 if (existsSync('.env')) {
-    loadEnvFile('.env');
+  loadEnvFile('.env');
 }
 
 const configService: ConfigService = new ConfigService();
-const dataSource: DataSource = new DataSource(createDatabaseConfig(configService));
+const dataSource: DataSource = new DataSource(
+  createDatabaseConfig(configService),
+);
 
 export default dataSource;

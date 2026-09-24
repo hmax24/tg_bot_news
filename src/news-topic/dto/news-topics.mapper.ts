@@ -4,13 +4,11 @@ import type { NewsTopicDto } from './news-topic.dto';
 
 @Injectable()
 export class NewsTopicsMapper {
-    mapToDto(topic: NewsTopic): NewsTopicDto {
-        return { id: topic.id, name: topic.name };
-    }
+  mapToDto(topic: NewsTopic): NewsTopicDto {
+    return { id: topic.id, name: topic.name };
+  }
 
-    mapToDtoList(topics: NewsTopic[]): NewsTopicDto[] {
-        return topics.map(
-            (topic: NewsTopic): NewsTopicDto => this.mapToDto(topic),
-        );
-    }
+  mapToDtoList(topics: NewsTopic[]): NewsTopicDto[] {
+    return topics.map((topic: NewsTopic): NewsTopicDto => this.mapToDto(topic));
+  }
 }

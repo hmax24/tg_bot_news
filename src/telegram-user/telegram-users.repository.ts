@@ -5,59 +5,49 @@ import { TelegramUser } from './telegram-user.entity';
 
 @Injectable()
 export class TelegramUsersRepository {
-    constructor(
-        @InjectRepository(TelegramUser)
-        private readonly repository: Repository<TelegramUser>,
-    ) {}
+  constructor(
+    @InjectRepository(TelegramUser)
+    private readonly repository: Repository<TelegramUser>,
+  ) {}
 
-    async addUser(
-        telegramId: string,
-        manager?: EntityManager,
-    ): Promise<void> {
-        const repository: Repository<TelegramUser> =
-            this.getRepository(manager);
+  async addUser(telegramId: string, manager?: EntityManager): Promise<void> {
+    const repository: Repository<TelegramUser> = this.getRepository(manager);
 
-        await repository
-            .createQueryBuilder()
-            .insert()
-            .into(TelegramUser)
-            .values({ telegramId })
-            .orIgnore()
-            .execute();
-    }
+    await repository
+      .createQueryBuilder()
+      .insert()
+      .into(TelegramUser)
+      .values({ telegramId })
+      .orIgnore()
+      .execute();
+  }
 
-    async findByTelegramId(
-        telegramId: string,
-        manager?: EntityManager,
-    ): Promise<TelegramUser | null> {
-        const repository: Repository<TelegramUser> =
-            this.getRepository(manager);
+  async findByTelegramId(
+    telegramId: string,
+    manager?: EntityManager,
+  ): Promise<TelegramUser | null> {
+    const repository: Repository<TelegramUser> = this.getRepository(manager);
 
-        return repository.findOneBy({ telegramId });
-    }
+    return repository.findOneBy({ telegramId });
+  }
 
-    private getRepository(
-        manager?: EntityManager,
-    ): Repository<TelegramUser> {
-        return manager
-            ? manager.getRepository(TelegramUser)
-            : this.repository;
-    }
+  private getRepository(manager?: EntityManager): Repository<TelegramUser> {
+    return manager ? manager.getRepository(TelegramUser) : this.repository;
+  }
 
-    async findMaxId(manager: EntityManager): Promise<number> {
-        const repository: Repository<TelegramUser> =
-            this.getRepository(manager);
+  async findMaxId(manager: EntityManager): Promise<number> {
+    const repository: Repository<TelegramUser> = this.getRepository(manager);
 
-        const user: TelegramUser | null = await repository.findOne({
-            select: {
-                id: true,
-            },
-            where: {},
-            order: {
-                id: 'DESC',
-            },
-        });
+    const user: TelegramUser | null = await repository.findOne({
+      select: {
+        id: true,
+      },
+      where: {},
+      order: {
+        id: 'DESC',
+      },
+    });
 
-        return user?.id ?? 0;
-    }
+    return user?.id ?? 0;
+  }
 }

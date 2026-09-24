@@ -1,279 +1,255 @@
-import {Action, Command, Ctx, Help, Hears, Start, Update} from 'nestjs-telegraf';
-import {Context} from 'telegraf';
-import {TelegramBotService} from './telegram-bot.service';
-import {TelegramBotKeyboards} from './telegram-bot.keyboards';
-import {BOT_BUTTONS, CALLBACK_PREFIXES} from './telegram-bot.constants';
-import {Logger} from "@nestjs/common";
+import {
+  Action,
+  Command,
+  Ctx,
+  Help,
+  Hears,
+  Start,
+  Update,
+} from 'nestjs-telegraf';
+import { Context } from 'telegraf';
+import { TelegramBotService } from './telegram-bot.service';
+import { TelegramBotKeyboards } from './telegram-bot.keyboards';
+import { BOT_BUTTONS, CALLBACK_PREFIXES } from './telegram-bot.constants';
+import { Logger } from '@nestjs/common';
 import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';
-import {TopicCallbackValidator} from "./validation/topic-callback.validator";
+import { TopicCallbackValidator } from './validation/topic-callback.validator';
+import { TelegramMessageDto } from '../telegram-messaging/dto/telegram-message.dto';
+import { TelegramMessageKeyboard } from '../telegram-messaging/keyboards/telegram-message.keyboard';
 
 @Update()
 export class TelegramBotUpdate {
-    constructor(
-        private readonly telegramBotService: TelegramBotService,
-    ) {
+  constructor(private readonly telegramBotService: TelegramBotService) {}
+
+  private readonly logger: Logger = new Logger(TelegramBotUpdate.name);
+
+  @Start()
+  async start(@Ctx() ctx: Context): Promise<void> {
+    const firstName: string | undefined = ctx.from?.first_name;
+
+    await ctx.reply(
+      this.telegramBotService.getWelcomeMessage(firstName),
+      TelegramBotKeyboards.getMainMenuKeyboard(),
+    );
+  }
+
+  @Help()
+  async help(@Ctx() ctx: Context): Promise<void> {
+    await ctx.reply(
+      this.telegramBotService.getHelpMessage(),
+      TelegramBotKeyboards.getMainMenuKeyboard(),
+    );
+  }
+
+  @Command('topics')
+  async topics(@Ctx() ctx: Context): Promise<void> {
+    const telegramId: string | null = this.getTelegramId(ctx);
+
+    if (telegramId === null) {
+      await ctx.reply('Не удалось определить пользователя.');
+      return;
     }
 
-    private readonly logger: Logger =
-        new Logger(TelegramBotUpdate.name);
+    const topics: NewsTopicDto[] = await this.telegramBotService.getTopics();
 
-    @Start()
-    async start(@Ctx() ctx: Context): Promise<void> {
-        const firstName: string | undefined = ctx.from?.first_name;
-
-        await ctx.reply(
-            this.telegramBotService.getWelcomeMessage(firstName),
-            TelegramBotKeyboards.getMainMenuKeyboard(),
-        );
+    if (topics.length === 0) {
+      await ctx.reply('Доступных тем пока нет.');
+      return;
     }
 
-    @Help()
-    async help(@Ctx() ctx: Context): Promise<void> {
-        await ctx.reply(
-            this.telegramBotService.getHelpMessage(),
-            TelegramBotKeyboards.getMainMenuKeyboard(),
-        );
+    const subscriptions: NewsTopicDto[] =
+      await this.telegramBotService.getUserSubscriptions(telegramId);
+
+    const subscribedTopicIds: number[] = subscriptions.map(
+      (topic: NewsTopicDto): number => topic.id,
+    );
+
+    await ctx.reply(
+      'Выбери темы:',
+      TelegramBotKeyboards.getTopicsKeyboard(topics, subscribedTopicIds),
+    );
+  }
+
+  @Command('my_subscriptions')
+  async mySubscriptions(@Ctx() ctx: Context): Promise<void> {
+    const telegramId: string | null = this.getTelegramId(ctx);
+
+    if (telegramId === null) {
+      await ctx.reply('Не удалось определить пользователя.');
+      return;
     }
 
-    @Command('topics')
-    async topics(@Ctx() ctx: Context): Promise<void> {
-        const telegramId: string | null = this.getTelegramId(ctx);
+    const message: string =
+      await this.telegramBotService.getMySubscriptionsMessage(telegramId);
 
-        if (telegramId === null) {
-            await ctx.reply('Не удалось определить пользователя.');
-            return;
-        }
+    await ctx.reply(message);
+  }
 
-        const topics: NewsTopicDto[] =
-            await this.telegramBotService.getTopics();
+  @Command('unsubscribe')
+  async unsubscribe(@Ctx() ctx: Context): Promise<void> {
+    const telegramId: string | null = this.getTelegramId(ctx);
 
-        if (topics.length === 0) {
-            await ctx.reply('Доступных тем пока нет.');
-            return;
-        }
-
-        const subscriptions: NewsTopicDto[] =
-            await this.telegramBotService.getUserSubscriptions(
-                telegramId,
-            );
-
-        const subscribedTopicIds: number[] = subscriptions.map(
-            (topic: NewsTopicDto): number => topic.id,
-        );
-
-        await ctx.reply(
-            'Выбери темы:',
-            TelegramBotKeyboards.getTopicsKeyboard(
-                topics,
-                subscribedTopicIds,
-            ),
-        );
+    if (telegramId === null) {
+      await ctx.reply('Не удалось определить пользователя.');
+      return;
     }
 
-    @Command('my_subscriptions')
-    async mySubscriptions(@Ctx() ctx: Context): Promise<void> {
-        const telegramId: string | null = this.getTelegramId(ctx);
+    const topics: NewsTopicDto[] =
+      await this.telegramBotService.getUserSubscriptions(telegramId);
 
-        if (telegramId === null) {
-            await ctx.reply('Не удалось определить пользователя.');
-            return;
-        }
-
-        const message: string =
-            await this.telegramBotService.getMySubscriptionsMessage(
-                telegramId,
-            );
-
-        await ctx.reply(message);
+    if (topics.length === 0) {
+      await ctx.reply('У тебя пока нет активных подписок.');
+      return;
     }
 
-    @Command('unsubscribe')
-    async unsubscribe(@Ctx() ctx: Context): Promise<void> {
-        const telegramId: string | null = this.getTelegramId(ctx);
+    await ctx.reply(
+      'Выбери тему для отписки:',
+      TelegramBotKeyboards.getUnsubscribeKeyboard(topics),
+    );
+  }
 
-        if (telegramId === null) {
-            await ctx.reply('Не удалось определить пользователя.');
-            return;
-        }
+  @Command('latest')
+  async latest(@Ctx() ctx: Context): Promise<void> {
+    let messages: TelegramMessageDto[];
 
-        const topics: NewsTopicDto[] =
-            await this.telegramBotService.getUserSubscriptions(
-                telegramId,
-            );
+    try {
+      const telegramId: string | null = this.getTelegramId(ctx);
 
-        if (topics.length === 0) {
-            await ctx.reply('У тебя пока нет активных подписок.');
-            return;
-        }
+      if (telegramId === null) {
+        await ctx.reply('Не удалось определить пользователя.');
+        return;
+      }
+      messages =
+        await this.telegramBotService.getLatestNewsMessages(telegramId);
+    } catch (error: unknown) {
+      const message: string =
+        error instanceof Error ? error.message : 'Unknown error';
 
-        await ctx.reply(
-            'Выбери тему для отписки:',
-            TelegramBotKeyboards.getUnsubscribeKeyboard(topics),
-        );
+      this.logger.error(`Failed to load latest articles: ${message}`);
+
+      await ctx.reply('Не удалось загрузить новости. Попробуй позже.');
+
+      return;
     }
 
-    @Command('latest')
-    async latest(@Ctx() ctx: Context): Promise<void> {
-        let messages: string[];
+    for (let index: number = 0; index < messages.length; index++) {
+      const message: TelegramMessageDto = messages[index];
 
-        try {
-            const telegramId: string | null = this.getTelegramId(ctx);
+      await ctx.reply(message.text, {
+        reply_markup: TelegramMessageKeyboard.create(message.buttons),
+      });
+    }
+  }
 
-            if (telegramId === null) {
-                await ctx.reply('Не удалось определить пользователя.');
-                return;
-            }
-            messages =
-                await this.telegramBotService.getLatestNewsMessages(
-                    telegramId,
-                );
-        } catch (error: unknown) {
-            const message: string =
-                error instanceof Error
-                    ? error.message
-                    : 'Unknown error';
+  @Hears(BOT_BUTTONS.TOPICS)
+  async topicsButton(@Ctx() ctx: Context): Promise<void> {
+    await this.topics(ctx);
+  }
 
-            this.logger.error(
-                `Failed to load latest articles: ${message}`,
-            );
+  @Hears(BOT_BUTTONS.MY_SUBSCRIPTIONS)
+  async mySubscriptionsButton(@Ctx() ctx: Context): Promise<void> {
+    await this.mySubscriptions(ctx);
+  }
 
-            await ctx.reply(
-                'Не удалось загрузить новости. Попробуй позже.',
-            );
+  @Hears(BOT_BUTTONS.UNSUBSCRIBE)
+  async unsubscribeButton(@Ctx() ctx: Context): Promise<void> {
+    await this.unsubscribe(ctx);
+  }
 
-            return;
-        }
+  @Hears(BOT_BUTTONS.HELP)
+  async helpButton(@Ctx() ctx: Context): Promise<void> {
+    await this.help(ctx);
+  }
 
-        for (
-            let index: number = 0;
-            index < messages.length;
-            index++
-        ) {
-            const message: string = messages[index];
+  @Action(/^subscribe_topic:(.+)$/)
+  async selectTopic(@Ctx() ctx: Context): Promise<void> {
+    const telegramId: string | null = this.getTelegramId(ctx);
+    const callbackData: string | null = this.getCallbackData(ctx);
 
-            await ctx.reply(
-                message,
-                TelegramBotKeyboards.getMainMenuKeyboard(),
-            );
-        }
+    const topicId: number | null =
+      callbackData === null
+        ? null
+        : TopicCallbackValidator.parseTopicId(
+            callbackData,
+            CALLBACK_PREFIXES.SUBSCRIBE_TOPIC,
+          );
+
+    if (telegramId === null || topicId === null) {
+      await ctx.answerCbQuery('Открой список тем заново.');
+      return;
     }
 
-    @Hears(BOT_BUTTONS.TOPICS)
-    async topicsButton(@Ctx() ctx: Context): Promise<void> {
-        await this.topics(ctx);
+    await ctx.answerCbQuery();
+
+    try {
+      const message: string = await this.telegramBotService.subscribeToTopic(
+        telegramId,
+        topicId,
+      );
+
+      await ctx.reply(message);
+    } catch (error: unknown) {
+      const message: string =
+        error instanceof Error ? error.message : 'Unknown subscription error';
+
+      this.logger.error(message);
+
+      await ctx.reply(
+        'Не удалось подписаться. Обнови список тем и попробуй ещё раз.',
+      );
+    }
+  }
+
+  @Action(/^unsubscribe_topic:(.+)$/)
+  async unsubscribeFromTopic(@Ctx() ctx: Context): Promise<void> {
+    const telegramId: string | null = this.getTelegramId(ctx);
+    const callbackData: string | null = this.getCallbackData(ctx);
+
+    const topicId: number | null =
+      callbackData === null
+        ? null
+        : TopicCallbackValidator.parseTopicId(
+            callbackData,
+            CALLBACK_PREFIXES.UNSUBSCRIBE_TOPIC,
+          );
+
+    if (telegramId === null || topicId === null) {
+      await ctx.answerCbQuery('Открой список подписок заново.');
+      return;
     }
 
-    @Hears(BOT_BUTTONS.MY_SUBSCRIPTIONS)
-    async mySubscriptionsButton(@Ctx() ctx: Context): Promise<void> {
-        await this.mySubscriptions(ctx);
+    await ctx.answerCbQuery();
+
+    try {
+      const message: string =
+        await this.telegramBotService.unsubscribeFromTopic(telegramId, topicId);
+
+      await ctx.reply(message);
+    } catch (error: unknown) {
+      const message: string =
+        error instanceof Error ? error.message : 'Unknown unsubscribe error';
+
+      this.logger.error(message);
+
+      await ctx.reply('Не удалось отписаться. Попробуй ещё раз.');
+    }
+  }
+
+  private getTelegramId(ctx: Context): string | null {
+    if (!ctx.from?.id) {
+      return null;
     }
 
-    @Hears(BOT_BUTTONS.UNSUBSCRIBE)
-    async unsubscribeButton(@Ctx() ctx: Context): Promise<void> {
-        await this.unsubscribe(ctx);
+    return String(ctx.from.id);
+  }
+
+  private getCallbackData(ctx: Context): string | null {
+    const callbackQuery: Context['callbackQuery'] = ctx.callbackQuery;
+
+    if (!callbackQuery || !('data' in callbackQuery)) {
+      return null;
     }
 
-    @Hears(BOT_BUTTONS.HELP)
-    async helpButton(@Ctx() ctx: Context): Promise<void> {
-        await this.help(ctx);
-    }
-
-    @Action(/^subscribe_topic:(.+)$/)
-    async selectTopic(@Ctx() ctx: Context): Promise<void> {
-        const telegramId: string | null = this.getTelegramId(ctx);
-        const callbackData: string | null = this.getCallbackData(ctx);
-
-        const topicId: number | null = callbackData === null
-            ? null
-            : TopicCallbackValidator.parseTopicId(
-                callbackData,
-                CALLBACK_PREFIXES.SUBSCRIBE_TOPIC,
-            );
-
-        if (telegramId === null || topicId === null) {
-            await ctx.answerCbQuery('Открой список тем заново.');
-            return;
-        }
-
-        await ctx.answerCbQuery();
-
-        try {
-            const message: string =
-                await this.telegramBotService.subscribeToTopic(
-                    telegramId,
-                    topicId,
-                );
-
-            await ctx.reply(message);
-        } catch (error: unknown) {
-            const message: string = error instanceof Error
-                ? error.message
-                : 'Unknown subscription error';
-
-            this.logger.error(message);
-
-            await ctx.reply(
-                'Не удалось подписаться. Обнови список тем и попробуй ещё раз.',
-            );
-        }
-    }
-
-    @Action(/^unsubscribe_topic:(.+)$/)
-    async unsubscribeFromTopic(@Ctx() ctx: Context): Promise<void> {
-        const telegramId: string | null = this.getTelegramId(ctx);
-        const callbackData: string | null = this.getCallbackData(ctx);
-
-        const topicId: number | null = callbackData === null
-            ? null
-            : TopicCallbackValidator.parseTopicId(
-                callbackData,
-                CALLBACK_PREFIXES.UNSUBSCRIBE_TOPIC,
-            );
-
-        if (telegramId === null || topicId === null) {
-            await ctx.answerCbQuery('Открой список подписок заново.');
-            return;
-        }
-
-        await ctx.answerCbQuery();
-
-        try {
-            const message: string =
-                await this.telegramBotService.unsubscribeFromTopic(
-                    telegramId,
-                    topicId,
-                );
-
-            await ctx.reply(message);
-        } catch (error: unknown) {
-            const message: string = error instanceof Error
-                ? error.message
-                : 'Unknown unsubscribe error';
-
-            this.logger.error(message);
-
-            await ctx.reply(
-                'Не удалось отписаться. Попробуй ещё раз.',
-            );
-        }
-    }
-
-    private getTelegramId(ctx: Context): string | null {
-        if (!ctx.from?.id) {
-            return null;
-        }
-
-        return String(ctx.from.id);
-    }
-
-    private getCallbackData(ctx: Context): string | null {
-        const callbackQuery: Context['callbackQuery'] =
-            ctx.callbackQuery;
-
-        if (!callbackQuery || !('data' in callbackQuery)) {
-            return null;
-        }
-
-        return callbackQuery.data;
-    }
+    return callbackQuery.data;
+  }
 }

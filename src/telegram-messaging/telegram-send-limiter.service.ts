@@ -4,76 +4,63 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 @Injectable()
 export class TelegramSendLimiter {
-    private readonly globalIntervalMs: number = 50;
-    private readonly chatIntervalMs: number = 1000;
+  private readonly globalIntervalMs: number = 50;
+  private readonly chatIntervalMs: number = 1000;
 
-    private nextGlobalSendAt: number = 0;
+  private nextGlobalSendAt: number = 0;
 
-    private readonly nextChatSendAt: Map<string, number> =
-        new Map<string, number>();
+  private readonly nextChatSendAt: Map<string, number> = new Map<
+    string,
+    number
+  >();
 
-    private queue: Promise<void> = Promise.resolve();
+  private queue: Promise<void> = Promise.resolve();
 
-    execute<T>(
-        telegramId: string,
-        operation: () => Promise<T>,
-    ): Promise<T> {
-        const result: Promise<T> = this.queue.then(
-            async (): Promise<T> => {
-                await this.waitForSlot(telegramId);
+  execute<T>(telegramId: string, operation: () => Promise<T>): Promise<T> {
+    const result: Promise<T> = this.queue.then(async (): Promise<T> => {
+      await this.waitForSlot(telegramId);
 
-                return operation();
-            },
-        );
+      return operation();
+    });
 
-        // Ошибка остаётся в result, но не блокирует будущие вызовы.
-        this.queue = result.then(
-            (): void => {},
-            (): void => {},
-        );
+    // Ошибка остаётся в result, но не блокирует будущие вызовы.
+    this.queue = result.then(
+      (): void => {},
+      (): void => {},
+    );
 
-        return result;
+    return result;
+  }
+
+  private async waitForSlot(telegramId: string): Promise<void> {
+    const nextChatSendAt: number = this.nextChatSendAt.get(telegramId) ?? 0;
+
+    const allowedAt: number = Math.max(this.nextGlobalSendAt, nextChatSendAt);
+
+    let waitMs: number = allowedAt - performance.now();
+
+    while (waitMs > 0) {
+      await delay(Math.ceil(waitMs));
+
+      waitMs = allowedAt - performance.now();
     }
 
-    private async waitForSlot(
-        telegramId: string,
-    ): Promise<void> {
-        const nextChatSendAt: number =
-            this.nextChatSendAt.get(telegramId) ?? 0;
+    const startedAt: number = performance.now();
 
-        const allowedAt: number = Math.max(
-            this.nextGlobalSendAt,
-            nextChatSendAt,
-        );
+    this.removeExpiredChats(startedAt);
 
-        let waitMs: number = allowedAt - performance.now();
+    this.nextGlobalSendAt = startedAt + this.globalIntervalMs;
 
-        while (waitMs > 0) {
-            await delay(Math.ceil(waitMs));
+    this.nextChatSendAt.set(telegramId, startedAt + this.chatIntervalMs);
+  }
 
-            waitMs = allowedAt - performance.now();
+  private removeExpiredChats(now: number): void {
+    this.nextChatSendAt.forEach(
+      (allowedAt: number, telegramId: string): void => {
+        if (allowedAt <= now) {
+          this.nextChatSendAt.delete(telegramId);
         }
-
-        const startedAt: number = performance.now();
-
-        this.removeExpiredChats(startedAt);
-
-        this.nextGlobalSendAt =
-            startedAt + this.globalIntervalMs;
-
-        this.nextChatSendAt.set(
-            telegramId,
-            startedAt + this.chatIntervalMs,
-        );
-    }
-
-    private removeExpiredChats(now: number): void {
-        this.nextChatSendAt.forEach(
-            (allowedAt: number, telegramId: string): void => {
-                if (allowedAt <= now) {
-                    this.nextChatSendAt.delete(telegramId);
-                }
-            },
-        );
-    }
+      },
+    );
+  }
 }

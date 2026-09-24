@@ -5,15 +5,8 @@ import { TelegramUsersRepository } from './telegram-users.repository';
 import { TelegramUsersService } from './telegram-users.service';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([TelegramUser]),
-    ],
-    providers: [
-        TelegramUsersRepository,
-        TelegramUsersService,
-    ],
-    exports: [
-        TelegramUsersService,
-    ],
+  imports: [TypeOrmModule.forFeature([TelegramUser])],
+  providers: [TelegramUsersRepository, TelegramUsersService],
+  exports: [TelegramUsersService],
 })
 export class TelegramUsersModule {}

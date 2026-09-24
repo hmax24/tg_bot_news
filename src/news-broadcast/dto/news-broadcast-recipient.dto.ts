@@ -1,4 +1,4 @@
 export interface NewsBroadcastRecipientDto {
-    userId: number;
-    telegramId: string;
+  userId: number;
+  telegramId: string;
 }

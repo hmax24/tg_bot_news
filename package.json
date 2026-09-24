@@ -26,6 +26,8 @@
     "schema:check": "ts-node src/database/check-schema.ts"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.12",
+    "@langchain/google": "^0.2.7",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -72,7 +74,9 @@
       "ts"
     ],
     "rootDir": ".",
-    "testMatch": ["<rootDir>/test/**/*.spec.ts"],
+    "testMatch": [
+      "<rootDir>/test/**/*.spec.ts"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

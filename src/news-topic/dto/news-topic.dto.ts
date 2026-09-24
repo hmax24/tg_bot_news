@@ -1,4 +1,4 @@
 export interface NewsTopicDto {
-    id: number;
-    name: string;
+  id: number;
+  name: string;
 }

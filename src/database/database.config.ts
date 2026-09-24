@@ -1,11 +1,12 @@
-import type { ConfigService } from '@nestjs/config';
-import type { DataSourceOptions } from 'typeorm';
-import { join } from 'node:path';
-import { NewsArticle } from '../news_article/news-article.entity';
-import { NewsSubscription } from '../news-subscription/news-subscription.entity';
-import { NewsTopic } from '../news-topic/news-topic.entity';
-import { TelegramUser } from '../telegram-user/telegram-user.entity';
-import {NewsBroadcast} from "../news-broadcast/news-broadcast.entity";
+import type {ConfigService} from '@nestjs/config';
+import type {DataSourceOptions} from 'typeorm';
+import {join} from 'node:path';
+import {NewsArticle} from '../news_article/news-article.entity';
+import {NewsSubscription} from '../news-subscription/news-subscription.entity';
+import {NewsTopic} from '../news-topic/news-topic.entity';
+import {TelegramUser} from '../telegram-user/telegram-user.entity';
+import {NewsBroadcast} from '../news-broadcast/news-broadcast.entity';
+import {NewsArticleContent} from "../news-article-content/news-article-content.entity";
 
 export function createDatabaseConfig(
     configService: ConfigService,
@@ -29,6 +30,7 @@ export function createDatabaseConfig(
             NewsTopic,
             TelegramUser,
             NewsBroadcast,
+            NewsArticleContent,
         ],
         migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
         synchronize: false,

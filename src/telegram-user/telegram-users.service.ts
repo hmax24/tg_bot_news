@@ -5,42 +5,34 @@ import { TelegramUsersRepository } from './telegram-users.repository';
 
 @Injectable()
 export class TelegramUsersService {
-    constructor(
-        private readonly repository: TelegramUsersRepository,
-    ) {}
+  constructor(private readonly repository: TelegramUsersRepository) {}
 
-    async findByTelegramId(
-        telegramId: string,
-        manager?: EntityManager,
-    ): Promise<TelegramUser | null> {
-        return this.repository.findByTelegramId(telegramId, manager);
+  async findByTelegramId(
+    telegramId: string,
+    manager?: EntityManager,
+  ): Promise<TelegramUser | null> {
+    return this.repository.findByTelegramId(telegramId, manager);
+  }
+
+  async getOrCreateByTelegramId(
+    telegramId: string,
+    manager?: EntityManager,
+  ): Promise<TelegramUser> {
+    await this.repository.addUser(telegramId, manager);
+
+    const user: TelegramUser | null = await this.repository.findByTelegramId(
+      telegramId,
+      manager,
+    );
+
+    if (user === null) {
+      throw new Error('Telegram user was not found after creation');
     }
 
-    async getOrCreateByTelegramId(
-        telegramId: string,
-        manager?: EntityManager,
-    ): Promise<TelegramUser> {
-        await this.repository.addUser(
-            telegramId,
-            manager,
-        );
+    return user;
+  }
 
-        const user: TelegramUser | null =
-            await this.repository.findByTelegramId(
-                telegramId,
-                manager,
-            );
-
-        if (user === null) {
-            throw new Error(
-                'Telegram user was not found after creation',
-            );
-        }
-
-        return user;
-    }
-
-    async getMaxId(manager: EntityManager): Promise<number> {
-        return this.repository.findMaxId(manager);
-    }
+  async getMaxId(manager: EntityManager): Promise<number> {
+    return this.repository.findMaxId(manager);
+  }
 }

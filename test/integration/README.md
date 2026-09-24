@@ -2,7 +2,10 @@
 
 These tests use real migrations and repositories. DEV.to and Telegram calls are
 mocked; no articles are fetched and no messages are sent. `.env` is never loaded.
-Every test gets a random schema, which is removed afterwards. The connection must
+Every test gets a randomly named database using the `public` schema, which is
+removed afterwards. This matches migrations that explicitly qualify enum types
+with `public`. The test role needs CREATEDB (the disposable Docker/CI role has it).
+Only databases created by the current test are removed. The connection must
 target a dedicated database named `tg_news_test`; never use a production database.
 
 Start a disposable local database:

@@ -41,7 +41,9 @@ const integration: typeof describe = databaseUrl ? describe : describe.skip;
 
 integration('PostgreSQL migrations, import and broadcast', (): void => {
     let source: DataSource;
-    let schema: string;
+    let admin: DataSource | undefined;
+    let isolatedDatabase: string;
+    let databaseCreated: boolean;
     let service: NewsArticlesService;
     let contentService: NewsArticleContentService;
     let broadcasts: NewsBroadcastService;
@@ -54,13 +56,15 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
     >;
 
     beforeEach(async (): Promise<void> => {
+        admin = undefined;
+        databaseCreated = false;
         const url: URL = new URL(databaseUrl!);
         if (url.pathname !== '/tg_news_test') {
             throw new Error(
                 'TEST_DATABASE_URL must target the dedicated tg_news_test database',
             );
         }
-        schema = `test_${randomUUID().replaceAll('-', '')}`;
+        isolatedDatabase = `tg_news_test_${randomUUID().replaceAll('-', '')}`;
         const config: ConfigService = new ConfigService({
             DB_HOST: url.hostname,
             DB_PORT: url.port || '5432',
@@ -72,13 +76,23 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
         if (databaseOptions.type !== 'postgres') {
             throw new Error('Integration tests require PostgreSQL.');
         }
+        admin = new DataSource({
+            type: 'postgres',
+            host: databaseOptions.host,
+            port: databaseOptions.port,
+            username: databaseOptions.username,
+            password: databaseOptions.password,
+            database: 'tg_news_test',
+        });
+        await admin.initialize();
+        await admin.query(`CREATE DATABASE "${isolatedDatabase}" TEMPLATE template0`);
+        databaseCreated = true;
         source = new DataSource({
             ...databaseOptions,
-            schema,
-            extra: {options: `-c search_path=${schema}`},
+            database: isolatedDatabase,
+            schema: 'public',
         });
         await source.initialize();
-        await source.query(`CREATE SCHEMA "${schema}"`);
         await source.runMigrations();
         const users: TelegramUsersService = new TelegramUsersService(
             new TelegramUsersRepository(source.getRepository(TelegramUser)),
@@ -123,14 +137,22 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
 
     afterEach(async (): Promise<void> => {
         jest.restoreAllMocks();
-        if (source?.isInitialized) {
-            try {
-                await source.query(`DROP SCHEMA "${schema}" CASCADE`);
-            } finally {
+        try {
+            if (source?.isInitialized) {
                 await source.destroy();
             }
+            if (admin?.isInitialized && databaseCreated) {
+                if (!/^tg_news_test_[a-f0-9]{32}$/.test(isolatedDatabase)) {
+                    throw new Error('Refusing to drop an unexpected database name');
+                }
+                await admin.query(`DROP DATABASE "${isolatedDatabase}"`);
+            }
+        } finally {
+            if (admin?.isInitialized) {
+                await admin.destroy();
+            }
         }
-    });
+    }, 30000);
 
     const article = (
         id: number,

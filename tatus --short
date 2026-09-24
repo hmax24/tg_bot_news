@@ -1,0 +1,1328 @@
+[1mdiff --git a/src/app.module.ts b/src/app.module.ts[m
+[1mindex 46e444b..b1af064 100644[m
+[1m--- a/src/app.module.ts[m
+[1m+++ b/src/app.module.ts[m
+[36m@@ -32,8 +32,6 @@[m [mimport {ScheduleModule} from "@nestjs/schedule";[m
+         }),[m
+         TelegramBotModule,[m
+     ],[m
+[31m-    controllers: [],[m
+[31m-    providers: [],[m
+ })[m
+ [m
+ export class AppModule {[m
+[1mdiff --git a/src/database/migrations/1790115835721-configure-active-news-topics.ts b/src/database/migrations/1790115835721-configure-active-news-topics.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..9b81ca6[m
+[1m--- /dev/null[m
+[1m+++ b/src/database/migrations/1790115835721-configure-active-news-topics.ts[m
+[36m@@ -0,0 +1,135 @@[m
+[32m+[m[32mimport type { MigrationInterface, QueryRunner } from 'typeorm';[m
+[32m+[m
+[32m+[m[32mexport class ConfigureActiveNewsTopics1790115835721[m
+[32m+[m[32m    implements MigrationInterface[m
+[32m+[m[32m{[m
+[32m+[m[32m    name: string = 'ConfigureActiveNewsTopics1790115835721';[m
+[32m+[m
+[32m+[m[32m    public async up(queryRunner: QueryRunner): Promise<void> {[m
+[32m+[m[32m        const activeTopicNames: string[] = [[m
+[32m+[m[32m            'ai',[m
+[32m+[m[32m            'webdev',[m
+[32m+[m[32m            'programming',[m
+[32m+[m[32m            'api',[m
+[32m+[m[32m            'devops',[m
+[32m+[m[32m            'security',[m
+[32m+[m[32m            'python',[m
+[32m+[m[32m            'opensource',[m
+[32m+[m[32m            'javascript',[m
+[32m+[m[32m            'automation',[m
+[32m+[m[32m            'architecture',[m
+[32m+[m[32m            'machinelearning',[m
+[32m+[m[32m            'llm',[m
+[32m+[m[32m            'seo',[m
+[32m+[m[32m            'node',[m
+[32m+[m[32m            'android',[m
+[32m+[m[32m            'web3',[m
+[32m+[m[32m            'testing',[m
+[32m+[m[32m            'cybersecurity',[m
+[32m+[m[32m            'typescript',[m
+[32m+[m[32m            'backend',[m
+[32m+[m[32m            'devtools',[m
+[32m+[m[32m            'webscraping',[m
+[32m+[m[32m            'aiagents',[m
+[32m+[m[32m            'kubernetes',[m
+[32m+[m[32m            'linux',[m
+[32m+[m[32m            'react',[m
+[32m+[m[32m            'cloud',[m
+[32m+[m[32m            'datascience',[m
+[32m+[m[32m            'postgres',[m
+[32m+[m[32m        ];[m
+[32m+[m
+[32m+[m[32m        // Выполняется внутри стандартной транзакции миграций.[m
+[32m+[m[32m        // На время переключения блокируем изменения таблицы.[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            LOCK TABLE "news-topic"[m
+[32m+[m[32m            IN SHARE ROW EXCLUSIVE MODE[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        // Сохраняем исходную активность для отката.[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            CREATE TABLE "news_topic_activity_backup_1790115835721" ([m
+[32m+[m[32m                "topic_id" integer PRIMARY KEY,[m
+[32m+[m[32m                "name" character varying NOT NULL,[m
+[32m+[m[32m                "was_active" boolean NOT NULL[m
+[32m+[m[32m            )[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            INSERT INTO "news_topic_activity_backup_1790115835721"[m
+[32m+[m[32m                ("topic_id", "name", "was_active")[m
+[32m+[m[32m            SELECT "id", "name", "isActive"[m
+[32m+[m[32m            FROM "news-topic"[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            ALTER TABLE "news-topic"[m
+[32m+[m[32m            ALTER COLUMN "isActive" SET DEFAULT false[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        // На локальной или новой БД некоторых выбранных тем может не быть.[m
+[32m+[m[32m        await queryRunner.query([m
+[32m+[m[32m            `[m
+[32m+[m[32m                INSERT INTO "news-topic" ("name", "isActive")[m
+[32m+[m[32m                SELECT topic_name, true[m
+[32m+[m[32m                FROM unnest($1::text[]) AS selected(topic_name)[m
+[32m+[m[32m                ON CONFLICT ("name") DO NOTHING[m
+[32m+[m[32m            `,[m
+[32m+[m[32m            [activeTopicNames],[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        await queryRunner.query([m
+[32m+[m[32m            `[m
+[32m+[m[32m                UPDATE "news-topic"[m
+[32m+[m[32m                SET[m
+[32m+[m[32m                    "isActive" = ("name" = ANY($1::text[])),[m
+[32m+[m[32m                    "updatedAt" = CURRENT_TIMESTAMP[m
+[32m+[m[32m                WHERE "isActive" IS DISTINCT FROM[m
+[32m+[m[32m                    ("name" = ANY($1::text[]))[m
+[32m+[m[32m            `,[m
+[32m+[m[32m            [activeTopicNames],[m
+[32m+[m[32m        );[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public async down(queryRunner: QueryRunner): Promise<void> {[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            LOCK TABLE "news-topic"[m
+[32m+[m[32m            IN SHARE ROW EXCLUSIVE MODE[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        // Темы, отсутствовавшие до миграции, сохраняем неактивными.[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            UPDATE "news-topic" AS topic[m
+[32m+[m[32m            SET[m
+[32m+[m[32m                "isActive" = false,[m
+[32m+[m[32m                "updatedAt" = CURRENT_TIMESTAMP[m
+[32m+[m[32m            WHERE topic."isActive" = true[m
+[32m+[m[32m              AND NOT EXISTS ([m
+[32m+[m[32m                  SELECT 1[m
+[32m+[m[32m                  FROM "news_topic_activity_backup_1790115835721" AS backup[m
+[32m+[m[32m                  WHERE backup."topic_id" = topic."id"[m
+[32m+[m[32m                    AND backup."name" = topic."name"[m
+[32m+[m[32m              )[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            UPDATE "news-topic" AS topic[m
+[32m+[m[32m            SET[m
+[32m+[m[32m                "isActive" = backup."was_active",[m
+[32m+[m[32m                "updatedAt" = CURRENT_TIMESTAMP[m
+[32m+[m[32m            FROM "news_topic_activity_backup_1790115835721" AS backup[m
+[32m+[m[32m            WHERE topic."id" = backup."topic_id"[m
+[32m+[m[32m              AND topic."name" = backup."name"[m
+[32m+[m[32m              AND topic."isActive" IS DISTINCT FROM backup."was_active"[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            ALTER TABLE "news-topic"[m
+[32m+[m[32m            ALTER COLUMN "isActive" SET DEFAULT true[m
+[32m+[m[32m        `);[m
+[32m+[m
+[32m+[m[32m        await queryRunner.query(`[m
+[32m+[m[32m            DROP TABLE "news_topic_activity_backup_1790115835721"[m
+[32m+[m[32m        `);[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/database/migrations/1790129582392-remove-news-article-is-sent.ts b/src/database/migrations/1790129582392-remove-news-article-is-sent.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..dcdcab5[m
+[1m--- /dev/null[m
+[1m+++ b/src/database/migrations/1790129582392-remove-news-article-is-sent.ts[m
+[36m@@ -0,0 +1,14 @@[m
+[32m+[m[32mimport { MigrationInterface, QueryRunner } from "typeorm";[m
+[32m+[m
+[32m+[m[32mexport class RemoveNewsArticleIsSent1790129582392 implements MigrationInterface {[m
+[32m+[m[32m    name = 'RemoveNewsArticleIsSent1790129582392'[m
+[32m+[m
+[32m+[m[32m    public async up(queryRunner: QueryRunner): Promise<void> {[m
+[32m+[m[32m        await queryRunner.query(`ALTER TABLE "news_article" DROP COLUMN "isSent"`);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    public async down(queryRunner: QueryRunner): Promise<void> {[m
+[32m+[m[32m        await queryRunner.query(`ALTER TABLE "news_article" ADD "isSent" boolean NOT NULL DEFAULT false`);[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m}[m
+[1mdiff --git a/src/main.ts b/src/main.ts[m
+[1mindex f76bc8d..359632c 100644[m
+[1m--- a/src/main.ts[m
+[1m+++ b/src/main.ts[m
+[36m@@ -1,8 +1,20 @@[m
+[32m+[m[32mimport type { INestApplication } from '@nestjs/common';[m
+ import { NestFactory } from '@nestjs/core';[m
+[32m+[m
+ import { AppModule } from './app.module';[m
+ [m
+[31m-async function bootstrap() {[m
+[31m-  const app = await NestFactory.create(AppModule);[m
+[32m+[m[32masync function bootstrap(): Promise<void> {[m
+[32m+[m[32m  const app: INestApplication =[m
+[32m+[m[32m      await NestFactory.create(AppModule);[m
+[32m+[m
+   await app.listen(process.env.PORT ?? 3000);[m
+ }[m
+[31m-bootstrap();[m
+[32m+[m
+[32m+[m[32mbootstrap().catch((error: unknown): void => {[m
+[32m+[m[32m  const message: string = error instanceof Error[m
+[32m+[m[32m      ? error.message[m
+[32m+[m[32m      : 'Application startup failed';[m
+[32m+[m
+[32m+[m[32m  console.error(message);[m
+[32m+[m[32m  process.exitCode = 1;[m
+[32m+[m[32m});[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news-broadcast/news-broadcast-processor.service.ts b/src/news-broadcast/news-broadcast-processor.service.ts[m
+[1mindex 64b64ad..ca843bb 100644[m
+[1m--- a/src/news-broadcast/news-broadcast-processor.service.ts[m
+[1m+++ b/src/news-broadcast/news-broadcast-processor.service.ts[m
+[36m@@ -7,7 +7,7 @@[m [mimport type { NewsBroadcastRecipientDto } from './dto/news-broadcast-recipient.d[m
+ [m
+ import { NewsArticlesMapper } from '../news_article/dto/news-articles.mapper';[m
+ import type { NewsArticleDto } from '../news_article/dto/news-article.dto';[m
+[31m-import { NewsArticlesFormatter } from '../telegram-bot/formatters/news-articles.formatter';[m
+[32m+[m[32mimport { NewsArticlesFormatter } from '../telegram-messaging/formatters/news-articles.formatter';[m
+ import { TelegramMessageSender } from '../telegram-messaging/telegram-message-sender.service';[m
+ [m
+ @Injectable()[m
+[1mdiff --git a/src/news-broadcast/news-broadcast.module.ts b/src/news-broadcast/news-broadcast.module.ts[m
+[1mindex c8e450a..45f94f7 100644[m
+[1m--- a/src/news-broadcast/news-broadcast.module.ts[m
+[1m+++ b/src/news-broadcast/news-broadcast.module.ts[m
+[36m@@ -1,17 +1,17 @@[m
+[31m-import { Module } from '@nestjs/common';[m
+[31m-import { TypeOrmModule } from '@nestjs/typeorm';[m
+[32m+[m[32mimport {Module} from '@nestjs/common';[m
+[32m+[m[32mimport {TypeOrmModule} from '@nestjs/typeorm';[m
+ [m
+[31m-import { TelegramUsersModule } from '../telegram-user/telegram-users.module';[m
+[31m-import { NewsBroadcast } from './news-broadcast.entity';[m
+[31m-import { NewsBroadcastRepository } from './news-broadcast.repository';[m
+[31m-import { NewsBroadcastService } from './news-broadcast.service';[m
+[32m+[m[32mimport {TelegramUsersModule} from '../telegram-user/telegram-users.module';[m
+[32m+[m[32mimport {NewsBroadcast} from './news-broadcast.entity';[m
+[32m+[m[32mimport {NewsBroadcastRepository} from './news-broadcast.repository';[m
+[32m+[m[32mimport {NewsBroadcastService} from './news-broadcast.service';[m
+ import {TelegramUser} from "../telegram-user/telegram-user.entity";[m
+ import {NewsBroadcastRecipientsRepository} from "./news-broadcast-recipients.repository";[m
+ import {TelegramMessagingModule} from "../telegram-messaging/telegram-messaging.module";[m
+ import {NewsBroadcastProcessor} from "./news-broadcast-processor.service";[m
+ import {NewsBroadcastJob} from "./news-broadcast.job";[m
+[31m-import {NewsArticlesMapper} from "../news_article/dto/news-articles.mapper";[m
+[31m-import {NewsArticlesFormatter} from "../telegram-bot/formatters/news-articles.formatter";[m
+[32m+[m[32mimport {TelegramFormattingModule} from "../telegram-messaging/telegram-formatting.module";[m
+[32m+[m[32mimport {NewsArticlesMappingModule} from "../news_article/dto/news-articles-mapping.module";[m
+ [m
+ @Module({[m
+     imports: [[m
+[36m@@ -21,6 +21,8 @@[m [mimport {NewsArticlesFormatter} from "../telegram-bot/formatters/news-articles.fo[m
+         ]),[m
+         TelegramUsersModule,[m
+         TelegramMessagingModule,[m
+[32m+[m[32m        NewsArticlesMappingModule,[m
+[32m+[m[32m        TelegramFormattingModule,[m
+     ],[m
+     providers: [[m
+         NewsBroadcastRepository,[m
+[36m@@ -28,11 +30,10 @@[m [mimport {NewsArticlesFormatter} from "../telegram-bot/formatters/news-articles.fo[m
+         NewsBroadcastRecipientsRepository,[m
+         NewsBroadcastProcessor,[m
+         NewsBroadcastJob,[m
+[31m-        NewsArticlesMapper,[m
+[31m-        NewsArticlesFormatter,[m
+     ],[m
+     exports: [[m
+         NewsBroadcastService,[m
+     ],[m
+ })[m
+[31m-export class NewsBroadcastModule {}[m
+\ No newline at end of file[m
+[32m+[m[32mexport class NewsBroadcastModule {[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news-broadcast/news-broadcast.repository.ts b/src/news-broadcast/news-broadcast.repository.ts[m
+[1mindex 758e0ca..7721bc3 100644[m
+[1m--- a/src/news-broadcast/news-broadcast.repository.ts[m
+[1m+++ b/src/news-broadcast/news-broadcast.repository.ts[m
+[36m@@ -33,7 +33,9 @@[m [mexport class NewsBroadcastRepository {[m
+                 status: NewsBroadcastStatus.PENDING,[m
+             },[m
+             relations: {[m
+[31m-                article: true,[m
+[32m+[m[32m                article: {[m
+[32m+[m[32m                    topics: true,[m
+[32m+[m[32m                },[m
+             },[m
+             order: {[m
+                 id: 'ASC',[m
+[1mdiff --git a/src/news-subscription/news-subscription.controller.ts b/src/news-subscription/news-subscription.controller.ts[m
+[1mdeleted file mode 100644[m
+[1mindex 551ebad..0000000[m
+[1m--- a/src/news-subscription/news-subscription.controller.ts[m
+[1m+++ /dev/null[m
+[36m@@ -1,5 +0,0 @@[m
+[31m-import {Controller} from "@nestjs/common";[m
+[31m-[m
+[31m-@Controller('news-subscription')[m
+[31m-export class NewsSubscriptionController {[m
+[31m-}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news-subscription/news-subscription.service.ts b/src/news-subscription/news-subscription.service.ts[m
+[1mindex dfe10e8..ea16435 100644[m
+[1m--- a/src/news-subscription/news-subscription.service.ts[m
+[1m+++ b/src/news-subscription/news-subscription.service.ts[m
+[36m@@ -23,9 +23,9 @@[m [mexport class NewsSubscriptionService {[m
+     async subscribe([m
+         telegramId: string,[m
+         topicId: number,[m
+[31m-    ): Promise<void> {[m
+[31m-        await this.dataSource.transaction([m
+[31m-            async (manager: EntityManager): Promise<void> => {[m
+[32m+[m[32m    ): Promise<NewsTopicDto> {[m
+[32m+[m[32m        return this.dataSource.transaction([m
+[32m+[m[32m            async (manager: EntityManager): Promise<NewsTopicDto> => {[m
+                 const topic: NewsTopic =[m
+                     await this.topicsService.getActiveById([m
+                         topicId,[m
+[36m@@ -79,6 +79,8 @@[m [mexport class NewsSubscriptionService {[m
+                     subscription,[m
+                     manager,[m
+                 );[m
+[32m+[m
+[32m+[m[32m                return this.topicsMapper.mapToDto(topic)[m
+             },[m
+         );[m
+     }[m
+[36m@@ -86,9 +88,11 @@[m [mexport class NewsSubscriptionService {[m
+     async unsubscribe([m
+         telegramId: string,[m
+         topicId: number,[m
+[31m-    ): Promise<void> {[m
+[31m-        await this.dataSource.transaction([m
+[31m-            async (manager: EntityManager): Promise<void> => {[m
+[32m+[m[32m    ): Promise<NewsTopicDto | null> {[m
+[32m+[m[32m        return this.dataSource.transaction([m
+[32m+[m[32m            async ([m
+[32m+[m[32m                manager: EntityManager,[m
+[32m+[m[32m            ): Promise<NewsTopicDto | null> => {[m
+                 const user: TelegramUser | null =[m
+                     await this.usersService.findByTelegramId([m
+                         telegramId,[m
+[36m@@ -96,7 +100,7 @@[m [mexport class NewsSubscriptionService {[m
+                     );[m
+ [m
+                 if (user === null) {[m
+[31m-                    return;[m
+[32m+[m[32m                    return null;[m
+                 }[m
+ [m
+                 if (!user.isActive) {[m
+[36m@@ -110,7 +114,7 @@[m [mexport class NewsSubscriptionService {[m
+                     );[m
+ [m
+                 if (lockedSubscription === null) {[m
+[31m-                    return;[m
+[32m+[m[32m                    return null;[m
+                 }[m
+ [m
+                 const subscription: NewsSubscription =[m
+[36m@@ -119,6 +123,16 @@[m [mexport class NewsSubscriptionService {[m
+                         manager,[m
+                     );[m
+ [m
+[32m+[m[32m                const removedTopic: NewsTopic | undefined =[m
+[32m+[m[32m                    subscription.newsTopics.find([m
+[32m+[m[32m                        (topic: NewsTopic): boolean =>[m
+[32m+[m[32m                            topic.id === topicId,[m
+[32m+[m[32m                    );[m
+[32m+[m
+[32m+[m[32m                if (removedTopic === undefined) {[m
+[32m+[m[32m                    return null;[m
+[32m+[m[32m                }[m
+[32m+[m
+                 subscription.newsTopics =[m
+                     subscription.newsTopics.filter([m
+                         (topic: NewsTopic): boolean =>[m
+[36m@@ -133,6 +147,8 @@[m [mexport class NewsSubscriptionService {[m
+                     subscription,[m
+                     manager,[m
+                 );[m
+[32m+[m
+[32m+[m[32m                return this.topicsMapper.mapToDto(removedTopic);[m
+             },[m
+         );[m
+     }[m
+[1mdiff --git a/src/news-subscription/news-subscriptions.module.ts b/src/news-subscription/news-subscriptions.module.ts[m
+[1mindex e085ec8..50a76ff 100644[m
+[1m--- a/src/news-subscription/news-subscriptions.module.ts[m
+[1m+++ b/src/news-subscription/news-subscriptions.module.ts[m
+[36m@@ -1,10 +1,8 @@[m
+ import { Module } from '@nestjs/common';[m
+ import { TypeOrmModule } from '@nestjs/typeorm';[m
+[31m-[m
+ import { TelegramUsersModule } from '../telegram-user/telegram-users.module';[m
+ import { NewsTopicsModule } from '../news-topic/news-topics.module';[m
+ import { NewsSubscription } from './news-subscription.entity';[m
+[31m-import { NewsSubscriptionController } from './news-subscription.controller';[m
+ import { NewsSubscriptionRepository } from './news-subscription.repository';[m
+ import { NewsSubscriptionService } from './news-subscription.service';[m
+ [m
+[36m@@ -14,9 +12,6 @@[m [mimport { NewsSubscriptionService } from './news-subscription.service';[m
+         TelegramUsersModule,[m
+         NewsTopicsModule,[m
+     ],[m
+[31m-    controllers: [[m
+[31m-        NewsSubscriptionController,[m
+[31m-    ],[m
+     providers: [[m
+         NewsSubscriptionRepository,[m
+         NewsSubscriptionService,[m
+[1mdiff --git a/src/news-topic/news-topic.entity.ts b/src/news-topic/news-topic.entity.ts[m
+[1mindex 924c0c1..856df7b 100644[m
+[1m--- a/src/news-topic/news-topic.entity.ts[m
+[1m+++ b/src/news-topic/news-topic.entity.ts[m
+[36m@@ -17,11 +17,14 @@[m [mexport class NewsTopic {[m
+     @Column({name: 'description', nullable: false, unique: false, default: ''})[m
+     description: string[m
+ [m
+[31m-    @Column({name: 'isActive', default: true, unique: false})[m
+[32m+[m[32m    @Column({[m
+[32m+[m[32m        name: 'isActive',[m
+[32m+[m[32m        type: 'boolean',[m
+[32m+[m[32m        default: false,[m
+[32m+[m[32m    })[m
+     isActive: boolean;[m
+ [m
+ [m
+[31m-[m
+     @CreateDateColumn()[m
+     createdAt: Date;[m
+ [m
+[1mdiff --git a/src/news-topic/news-topics.controller.ts b/src/news-topic/news-topics.controller.ts[m
+[1mdeleted file mode 100644[m
+[1mindex 21ad9b6..0000000[m
+[1m--- a/src/news-topic/news-topics.controller.ts[m
+[1m+++ /dev/null[m
+[36m@@ -1,6 +0,0 @@[m
+[31m-import {Controller} from "@nestjs/common";[m
+[31m-[m
+[31m-@Controller("news-topics")[m
+[31m-export class NewsTopicsController{[m
+[31m-[m
+[31m-}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news-topic/news-topics.module.ts b/src/news-topic/news-topics.module.ts[m
+[1mindex 09504ad..fc99de6 100644[m
+[1m--- a/src/news-topic/news-topics.module.ts[m
+[1m+++ b/src/news-topic/news-topics.module.ts[m
+[36m@@ -1,5 +1,4 @@[m
+ import {Module} from "@nestjs/common";[m
+[31m-import {NewsTopicsController} from "./news-topics.controller";[m
+ import {TypeOrmModule} from "@nestjs/typeorm";[m
+ import {NewsTopicsRepository} from "./news-topics.repository";[m
+ import {NewsTopicsService} from "./news-topics.service";[m
+[36m@@ -7,7 +6,6 @@[m [mimport {NewsTopic} from "./news-topic.entity";[m
+ import {NewsTopicsMapper} from './dto/news-topics.mapper';[m
+ [m
+ @Module({[m
+[31m-    controllers: [NewsTopicsController],[m
+     imports: [TypeOrmModule.forFeature([NewsTopic])],[m
+     providers: [NewsTopicsRepository, NewsTopicsService, NewsTopicsMapper],[m
+     exports: [NewsTopicsService, NewsTopicsMapper][m
+[1mdiff --git a/src/news-topic/news-topics.service.ts b/src/news-topic/news-topics.service.ts[m
+[1mindex 7e2dc0d..dcc7468 100644[m
+[1m--- a/src/news-topic/news-topics.service.ts[m
+[1m+++ b/src/news-topic/news-topics.service.ts[m
+[36m@@ -19,8 +19,13 @@[m [mexport class NewsTopicsService {[m
+     ): Promise<NewsTopic[]> {[m
+         const normalizedNames: string[] = [];[m
+ [m
+[31m-        for (const name of names) {[m
+[31m-            const normalizedName:string = name.trim().toLowerCase();[m
+[32m+[m[32m        for ([m
+[32m+[m[32m            let index: number = 0;[m
+[32m+[m[32m            index < names.length;[m
+[32m+[m[32m            index++[m
+[32m+[m[32m        ) {[m
+[32m+[m[32m            const name: string = names[index];[m
+[32m+[m[32m            const normalizedName: string = name.trim().toLowerCase();[m
+ [m
+             if ([m
+                 normalizedName.length > 0 &&[m
+[1mdiff --git a/src/news_article/dto/news-article.dto.ts b/src/news_article/dto/news-article.dto.ts[m
+[1mindex 55ee2d9..b318306 100644[m
+[1m--- a/src/news_article/dto/news-article.dto.ts[m
+[1m+++ b/src/news_article/dto/news-article.dto.ts[m
+[36m@@ -1,6 +1,9 @@[m
+[32m+[m[32mimport type { NewsTopicDto } from '../../news-topic/dto/news-topic.dto';[m
+[32m+[m
+ export interface NewsArticleDto {[m
+     id: number;[m
+     title: string;[m
+     description: string;[m
+     url: string;[m
+[32m+[m[32m    topics: NewsTopicDto[];[m
+ }[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news_article/dto/news-articles-mapping.module.ts b/src/news_article/dto/news-articles-mapping.module.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..89750c7[m
+[1m--- /dev/null[m
+[1m+++ b/src/news_article/dto/news-articles-mapping.module.ts[m
+[36m@@ -0,0 +1,9 @@[m
+[32m+[m[32mimport { Module } from '@nestjs/common';[m
+[32m+[m
+[32m+[m[32mimport { NewsArticlesMapper } from './news-articles.mapper';[m
+[32m+[m
+[32m+[m[32m@Module({[m
+[32m+[m[32m    providers: [NewsArticlesMapper],[m
+[32m+[m[32m    exports: [NewsArticlesMapper],[m
+[32m+[m[32m})[m
+[32m+[m[32mexport class NewsArticlesMappingModule {}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news_article/dto/news-articles.mapper.ts b/src/news_article/dto/news-articles.mapper.ts[m
+[1mindex aa4809b..ededef0 100644[m
+[1m--- a/src/news_article/dto/news-articles.mapper.ts[m
+[1m+++ b/src/news_article/dto/news-articles.mapper.ts[m
+[36m@@ -3,6 +3,7 @@[m [mimport { NewsArticle } from '../news-article.entity';[m
+ import type { NewsTopic } from '../../news-topic/news-topic.entity';[m
+ import type { NewsArticleImportDto } from './news-article-import.dto';[m
+ import {NewsArticleDto} from "./news-article.dto";[m
+[32m+[m[32mimport {NewsTopicDto} from "../../news-topic/dto/news-topic.dto";[m
+ [m
+ @Injectable()[m
+ export class NewsArticlesMapper {[m
+[36m@@ -23,14 +24,28 @@[m [mexport class NewsArticlesMapper {[m
+     }[m
+ [m
+     mapToDto(article: NewsArticle): NewsArticleDto {[m
+[31m-        const dto: NewsArticleDto = {[m
+[32m+[m[32m        const topics: NewsTopicDto[] = article.topics[m
+[32m+[m[32m            .filter([m
+[32m+[m[32m                (topic: NewsTopic): boolean => topic.isActive,[m
+[32m+[m[32m            )[m
+[32m+[m[32m            .map([m
+[32m+[m[32m                (topic: NewsTopic): NewsTopicDto => ({[m
+[32m+[m[32m                    id: topic.id,[m
+[32m+[m[32m                    name: topic.name,[m
+[32m+[m[32m                }),[m
+[32m+[m[32m            )[m
+[32m+[m[32m            .sort([m
+[32m+[m[32m                (left: NewsTopicDto, right: NewsTopicDto): number =>[m
+[32m+[m[32m                    left.name.localeCompare(right.name),[m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m        return {[m
+             id: article.id,[m
+             title: article.title,[m
+             description: article.description ?? '',[m
+             url: article.url,[m
+[32m+[m[32m            topics,[m
+         };[m
+[31m-[m
+[31m-        return dto;[m
+     }[m
+ [m
+     mapToDtoList(articles: NewsArticle[]): NewsArticleDto[] {[m
+[1mdiff --git a/src/news_article/news-article.entity.ts b/src/news_article/news-article.entity.ts[m
+[1mindex e6cbe86..1505302 100644[m
+[1m--- a/src/news_article/news-article.entity.ts[m
+[1m+++ b/src/news_article/news-article.entity.ts[m
+[36m@@ -29,9 +29,6 @@[m [mexport class NewsArticle {[m
+     @Column({name: 'publishedAt', nullable: false, unique: false})[m
+     publishedAt: Date[m
+ [m
+[31m-    @Column({name: 'isSent', default: false, unique: false})[m
+[31m-    isSent: boolean[m
+[31m-[m
+     @ManyToMany((): typeof NewsTopic => NewsTopic)[m
+     @JoinTable({[m
+         name: 'news_article_topics',[m
+[1mdiff --git a/src/news_article/news-articles.controller.ts b/src/news_article/news-articles.controller.ts[m
+[1mdeleted file mode 100644[m
+[1mindex 7b2e014..0000000[m
+[1m--- a/src/news_article/news-articles.controller.ts[m
+[1m+++ /dev/null[m
+[36m@@ -1,5 +0,0 @@[m
+[31m-import {Controller} from "@nestjs/common";[m
+[31m-[m
+[31m-@Controller("news-articles")[m
+[31m-export class NewsArticlesController {[m
+[31m-}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/news_article/news-articles.module.ts b/src/news_article/news-articles.module.ts[m
+[1mindex 8360ab0..b81ab6c 100644[m
+[1m--- a/src/news_article/news-articles.module.ts[m
+[1m+++ b/src/news_article/news-articles.module.ts[m
+[36m@@ -1,25 +1,21 @@[m
+ import {Module} from '@nestjs/common';[m
+ import {TypeOrmModule} from '@nestjs/typeorm';[m
+[31m-[m
+ import {NewsTopicsModule} from '../news-topic/news-topics.module';[m
+ import {NewsArticle} from './news-article.entity';[m
+[31m-import {NewsArticlesController} from './news-articles.controller';[m
+ import {NewsArticlesRepository} from './news-articles.repository';[m
+ import {NewsArticlesService} from './news-articles.service';[m
+ import {DevToClient} from './sources/dev-to/dev-to-client';[m
+ import {DevToArticlesMapper} from './sources/dev-to/dev-to-articles.mapper';[m
+[31m-import {NewsArticlesMapper} from "./dto/news-articles.mapper";[m
+ import {NewsArticlesImport} from "./news-articles.import";[m
+ import {NewsBroadcastModule} from "../news-broadcast/news-broadcast.module";[m
+[32m+[m[32mimport {NewsArticlesMappingModule} from "./dto/news-articles-mapping.module";[m
+ [m
+ @Module({[m
+     imports: [[m
+         TypeOrmModule.forFeature([NewsArticle]),[m
+         NewsTopicsModule,[m
+         NewsBroadcastModule,[m
+[31m-    ],[m
+[31m-    controllers: [[m
+[31m-        NewsArticlesController,[m
+[32m+[m[32m        NewsArticlesMappingModule,[m
+     ],[m
+     providers: [[m
+         NewsArticlesService,[m
+[36m@@ -27,7 +23,6 @@[m [mimport {NewsBroadcastModule} from "../news-broadcast/news-broadcast.module";[m
+         NewsArticlesImport,[m
+         DevToClient,[m
+         DevToArticlesMapper,[m
+[31m-        NewsArticlesMapper[m
+     ],[m
+     exports: [NewsArticlesService],[m
+ })[m
+[1mdiff --git a/src/news_article/news-articles.repository.ts b/src/news_article/news-articles.repository.ts[m
+[1mindex f9efdd0..6e29c1f 100644[m
+[1m--- a/src/news_article/news-articles.repository.ts[m
+[1m+++ b/src/news_article/news-articles.repository.ts[m
+[36m@@ -21,9 +21,12 @@[m [mexport class NewsArticlesRepository {[m
+ [m
+         return this.repository[m
+             .createQueryBuilder('article')[m
+[31m-            .innerJoin('article.topics', 'topic')[m
+[31m-            .where('topic.id IN (:...topicIds)', { topicIds })[m
+[31m-            .andWhere('topic.isActive = :isActive', {[m
+[32m+[m[32m            .innerJoin('article.topics', 'subscriptionTopic')[m
+[32m+[m[32m            .leftJoinAndSelect('article.topics', 'articleTopic')[m
+[32m+[m[32m            .where('subscriptionTopic.id IN (:...topicIds)', {[m
+[32m+[m[32m                topicIds,[m
+[32m+[m[32m            })[m
+[32m+[m[32m            .andWhere('subscriptionTopic.isActive = :isActive', {[m
+                 isActive: true,[m
+             })[m
+             .distinct(true)[m
+[1mdiff --git a/src/news_article/sources/dev-to/dev-to-client.ts b/src/news_article/sources/dev-to/dev-to-client.ts[m
+[1mindex 320f618..b3196db 100644[m
+[1m--- a/src/news_article/sources/dev-to/dev-to-client.ts[m
+[1m+++ b/src/news_article/sources/dev-to/dev-to-client.ts[m
+[36m@@ -12,6 +12,7 @@[m [mexport class DevToClient {[m
+                 {[m
+                     headers: {[m
+                         Accept: 'application/vnd.forem.api-v1+json',[m
+[32m+[m[32m                        'Accept-Encoding': 'identity',[m
+                     },[m
+                     params: { page: 1, per_page: 20 },[m
+                     timeout: 10_000,[m
+[1mdiff --git a/src/telegram-bot/formatters/news-articles.formatter.ts b/src/telegram-bot/formatters/news-articles.formatter.ts[m
+[1mdeleted file mode 100644[m
+[1mindex 5739c79..0000000[m
+[1m--- a/src/telegram-bot/formatters/news-articles.formatter.ts[m
+[1m+++ /dev/null[m
+[36m@@ -1,35 +0,0 @@[m
+[31m-import { Injectable } from '@nestjs/common';[m
+[31m-import type { NewsArticleDto } from '../../news_article/dto/news-article.dto';[m
+[31m-[m
+[31m-@Injectable()[m
+[31m-export class NewsArticlesFormatter {[m
+[31m-    private readonly maxMessageLength: number = 4000;[m
+[31m-    private readonly maxTitleLength: number = 300;[m
+[31m-[m
+[31m-    format(article: NewsArticleDto): string {[m
+[31m-        const title: string =[m
+[31m-            article.title.slice(0, this.maxTitleLength);[m
+[31m-[m
+[31m-        const footer: string = `Оригинал: ${article.url}`;[m
+[31m-[m
+[31m-        const baseMessage: string = `${title}\n\n${footer}`;[m
+[31m-[m
+[31m-        if (baseMessage.length > this.maxMessageLength) {[m
+[31m-            throw new Error([m
+[31m-                `Article ${article.id}: title and URL exceed message limit`,[m
+[31m-            );[m
+[31m-        }[m
+[31m-[m
+[31m-        const availableLength: number =[m
+[31m-            this.maxMessageLength - baseMessage.length - 2;[m
+[31m-[m
+[31m-        if (availableLength <= 0 || article.description.length === 0) {[m
+[31m-            return baseMessage;[m
+[31m-        }[m
+[31m-[m
+[31m-        const description: string =[m
+[31m-            article.description.slice(0, availableLength);[m
+[31m-[m
+[31m-        return `${title}\n\n${description}\n\n${footer}`;[m
+[31m-    }[m
+[31m-}[m
+[1mdiff --git a/src/telegram-bot/telegram-bot.keyboards.ts b/src/telegram-bot/telegram-bot.keyboards.ts[m
+[1mindex 27bbc04..a4d4bf6 100644[m
+[1m--- a/src/telegram-bot/telegram-bot.keyboards.ts[m
+[1m+++ b/src/telegram-bot/telegram-bot.keyboards.ts[m
+[36m@@ -2,11 +2,14 @@[m [mimport {BOT_BUTTONS, CALLBACK_PREFIXES} from './telegram-bot.constants';[m
+ import type {[m
+     InlineKeyboardMarkup,[m
+     InlineKeyboardButton,[m
+[32m+[m[32m    ReplyKeyboardMarkup,[m
+ } from 'telegraf/types';[m
+ import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';[m
+ [m
+ export class TelegramBotKeyboards {[m
+[31m-    static getMainMenuKeyboard() {[m
+[32m+[m[32m    static getMainMenuKeyboard(): {[m
+[32m+[m[32m        reply_markup: ReplyKeyboardMarkup;[m
+[32m+[m[32m    }  {[m
+         return {[m
+             reply_markup: {[m
+                 keyboard: [[m
+[36m@@ -29,26 +32,40 @@[m [mexport class TelegramBotKeyboards {[m
+         topics: NewsTopicDto[],[m
+         subscribedTopicIds: number[] = [],[m
+     ): { reply_markup: InlineKeyboardMarkup } {[m
+[31m-        const buttons: InlineKeyboardButton[][] = topics.map([m
+[31m-            (topic: NewsTopicDto): InlineKeyboardButton[] => {[m
+[31m-                const isSubscribed: boolean =[m
+[31m-                    subscribedTopicIds.includes(topic.id);[m
+[32m+[m[32m        const columns: number = 3;[m
+[32m+[m[32m        const rows: InlineKeyboardButton[][] = [];[m
+[32m+[m
+[32m+[m[32m        for ([m
+[32m+[m[32m            let index: number = 0;[m
+[32m+[m[32m            index < topics.length;[m
+[32m+[m[32m            index += columns[m
+[32m+[m[32m        ) {[m
+[32m+[m[32m            const rowTopics: NewsTopicDto[] = topics.slice([m
+[32m+[m[32m                index,[m
+[32m+[m[32m                index + columns,[m
+[32m+[m[32m            );[m
+ [m
+[31m-                return [[m
+[31m-                    {[m
+[32m+[m[32m            const row: InlineKeyboardButton[] = rowTopics.map([m
+[32m+[m[32m                (topic: NewsTopicDto): InlineKeyboardButton => {[m
+[32m+[m[32m                    const isSubscribed: boolean =[m
+[32m+[m[32m                        subscribedTopicIds.includes(topic.id);[m
+[32m+[m
+[32m+[m[32m                    return {[m
+                         text: isSubscribed[m
+                             ? `✅ ${topic.name}`[m
+                             : topic.name,[m
+                         callback_data:[m
+                             `${CALLBACK_PREFIXES.SUBSCRIBE_TOPIC}${topic.id}`,[m
+[31m-                    },[m
+[31m-                ];[m
+[31m-            },[m
+[31m-        );[m
+[32m+[m[32m                    };[m
+[32m+[m[32m                },[m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            rows.push(row);[m
+[32m+[m[32m        }[m
+ [m
+         return {[m
+             reply_markup: {[m
+[31m-                inline_keyboard: buttons,[m
+[32m+[m[32m                inline_keyboard: rows,[m
+             },[m
+         };[m
+     }[m
+[1mdiff --git a/src/telegram-bot/telegram-bot.module.ts b/src/telegram-bot/telegram-bot.module.ts[m
+[1mindex 86bbcbc..ab7cc25 100644[m
+[1m--- a/src/telegram-bot/telegram-bot.module.ts[m
+[1m+++ b/src/telegram-bot/telegram-bot.module.ts[m
+[36m@@ -2,20 +2,20 @@[m [mimport { Module } from '@nestjs/common';[m
+ import { NewsArticlesModule } from '../news_article/news-articles.module';[m
+ import { TelegramBotService } from './telegram-bot.service';[m
+ import { TelegramBotUpdate } from './telegram-bot.update';[m
+[31m-import { NewsArticlesFormatter } from './formatters/news-articles.formatter';[m
+ import {NewsSubscriptionsModule} from "../news-subscription/news-subscriptions.module";[m
+ import {NewsTopicsModule} from "../news-topic/news-topics.module";[m
+[32m+[m[32mimport {TelegramFormattingModule} from "../telegram-messaging/telegram-formatting.module";[m
+ [m
+ @Module({[m
+     imports: [[m
+         NewsArticlesModule,[m
+         NewsSubscriptionsModule,[m
+         NewsTopicsModule,[m
+[32m+[m[32m        TelegramFormattingModule[m
+     ],[m
+     providers: [[m
+         TelegramBotService,[m
+         TelegramBotUpdate,[m
+[31m-        NewsArticlesFormatter,[m
+     ],[m
+ })[m
+ export class TelegramBotModule {}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/telegram-bot/telegram-bot.service.ts b/src/telegram-bot/telegram-bot.service.ts[m
+[1mindex ed47066..868084d 100644[m
+[1m--- a/src/telegram-bot/telegram-bot.service.ts[m
+[1m+++ b/src/telegram-bot/telegram-bot.service.ts[m
+[36m@@ -2,7 +2,7 @@[m [mimport {Injectable, OnModuleInit} from '@nestjs/common';[m
+ import {InjectBot} from 'nestjs-telegraf';[m
+ import {Telegraf} from 'telegraf';[m
+ import {BOT_COMMANDS} from './telegram-bot.constants';[m
+[31m-import {NewsArticlesFormatter} from "./formatters/news-articles.formatter";[m
+[32m+[m[32mimport {NewsArticlesFormatter} from "../telegram-messaging/formatters/news-articles.formatter";[m
+ import {NewsArticlesService} from "../news_article/news-articles.service";[m
+ import {NewsArticleDto} from "../news_article/dto/news-article.dto";[m
+ import {NewsTopicsService} from "../news-topic/news-topics.service";[m
+[36m@@ -22,7 +22,7 @@[m [mexport class TelegramBotService implements OnModuleInit {[m
+     ) {[m
+     }[m
+ [m
+[31m-    async onModuleInit() {[m
+[32m+[m[32m    async onModuleInit(): Promise<void> {[m
+         await this.bot.telegram.setMyCommands(BOT_COMMANDS);[m
+     }[m
+ [m
+[36m@@ -67,39 +67,30 @@[m [mexport class TelegramBotService implements OnModuleInit {[m
+         telegramId: string,[m
+         topicId: number,[m
+     ): Promise<string> {[m
+[31m-        await this.newsSubscriptionService.subscribe([m
+[31m-            telegramId,[m
+[31m-            topicId,[m
+[31m-        );[m
+[32m+[m[32m        const topic: NewsTopicDto =[m
+[32m+[m[32m            await this.newsSubscriptionService.subscribe([m
+[32m+[m[32m                telegramId,[m
+[32m+[m[32m                topicId,[m
+[32m+[m[32m            );[m
+ [m
+[31m-        return 'Подписка сохранена.';[m
+[32m+[m[32m        return `Подписка на тему «${topic.name}» сохранена.`;[m
+     }[m
+ [m
+     async unsubscribeFromTopic([m
+         telegramId: string,[m
+         topicId: number,[m
+     ): Promise<string> {[m
+[31m-        const topics: NewsTopicDto[] =[m
+[31m-            await this.newsSubscriptionService.getSubscribedTopics([m
+[32m+[m[32m        const topic: NewsTopicDto | null =[m
+[32m+[m[32m            await this.newsSubscriptionService.unsubscribe([m
+                 telegramId,[m
+[32m+[m[32m                topicId,[m
+             );[m
+ [m
+[31m-        const topic: NewsTopicDto | undefined = topics.find([m
+[31m-            (item: NewsTopicDto): boolean => item.id === topicId,[m
+[31m-        );[m
+[31m-[m
+[31m-        await this.newsSubscriptionService.unsubscribe([m
+[31m-            telegramId,[m
+[31m-            topicId,[m
+[31m-        );[m
+[31m-[m
+[31m-        if (topic === undefined) {[m
+[31m-            return 'Активной подписки на эту тему уже нет.';[m
+[32m+[m[32m        if (topic === null) {[m
+[32m+[m[32m            return 'Подписки на эту тему уже нет.';[m
+         }[m
+ [m
+[31m-        const topicName: string = topic.name;[m
+[31m-[m
+[31m-        return `Подписка на тему «${topicName}» отключена.`;[m
+[32m+[m[32m        return `Подписка на тему «${topic.name}» отключена.`;[m
+     }[m
+ [m
+     async getMySubscriptionsMessage([m
+[1mdiff --git a/src/telegram-bot/telegram-bot.update.ts b/src/telegram-bot/telegram-bot.update.ts[m
+[1mindex dc2db8d..9232747 100644[m
+[1m--- a/src/telegram-bot/telegram-bot.update.ts[m
+[1m+++ b/src/telegram-bot/telegram-bot.update.ts[m
+[36m@@ -18,8 +18,8 @@[m [mexport class TelegramBotUpdate {[m
+         new Logger(TelegramBotUpdate.name);[m
+ [m
+     @Start()[m
+[31m-    async start(@Ctx() ctx: Context) {[m
+[31m-        const firstName = ctx.from?.first_name;[m
+[32m+[m[32m    async start(@Ctx() ctx: Context): Promise<void> {[m
+[32m+[m[32m        const firstName: string | undefined = ctx.from?.first_name;[m
+ [m
+         await ctx.reply([m
+             this.telegramBotService.getWelcomeMessage(firstName),[m
+[36m@@ -28,7 +28,7 @@[m [mexport class TelegramBotUpdate {[m
+     }[m
+ [m
+     @Help()[m
+[31m-    async help(@Ctx() ctx: Context) {[m
+[32m+[m[32m    async help(@Ctx() ctx: Context): Promise<void> {[m
+         await ctx.reply([m
+             this.telegramBotService.getHelpMessage(),[m
+             TelegramBotKeyboards.getMainMenuKeyboard(),[m
+[36m@@ -159,22 +159,22 @@[m [mexport class TelegramBotUpdate {[m
+     }[m
+ [m
+     @Hears(BOT_BUTTONS.TOPICS)[m
+[31m-    async topicsButton(@Ctx() ctx: Context) {[m
+[32m+[m[32m    async topicsButton(@Ctx() ctx: Context): Promise<void> {[m
+         await this.topics(ctx);[m
+     }[m
+ [m
+     @Hears(BOT_BUTTONS.MY_SUBSCRIPTIONS)[m
+[31m-    async mySubscriptionsButton(@Ctx() ctx: Context) {[m
+[32m+[m[32m    async mySubscriptionsButton(@Ctx() ctx: Context): Promise<void> {[m
+         await this.mySubscriptions(ctx);[m
+     }[m
+ [m
+     @Hears(BOT_BUTTONS.UNSUBSCRIBE)[m
+[31m-    async unsubscribeButton(@Ctx() ctx: Context) {[m
+[32m+[m[32m    async unsubscribeButton(@Ctx() ctx: Context): Promise<void> {[m
+         await this.unsubscribe(ctx);[m
+     }[m
+ [m
+     @Hears(BOT_BUTTONS.HELP)[m
+[31m-    async helpButton(@Ctx() ctx: Context) {[m
+[32m+[m[32m    async helpButton(@Ctx() ctx: Context): Promise<void> {[m
+         await this.help(ctx);[m
+     }[m
+ [m
+[36m@@ -267,7 +267,8 @@[m [mexport class TelegramBotUpdate {[m
+     }[m
+ [m
+     private getCallbackData(ctx: Context): string | null {[m
+[31m-        const callbackQuery = ctx.callbackQuery;[m
+[32m+[m[32m        const callbackQuery: Context['callbackQuery'] =[m
+[32m+[m[32m            ctx.callbackQuery;[m
+ [m
+         if (!callbackQuery || !('data' in callbackQuery)) {[m
+             return null;[m
+[1mdiff --git a/src/telegram-messaging/formatters/news-articles.formatter.ts b/src/telegram-messaging/formatters/news-articles.formatter.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..9246e4d[m
+[1m--- /dev/null[m
+[1m+++ b/src/telegram-messaging/formatters/news-articles.formatter.ts[m
+[36m@@ -0,0 +1,100 @@[m
+[32m+[m[32mimport { Injectable } from '@nestjs/common';[m
+[32m+[m
+[32m+[m[32mimport type { NewsArticleDto } from '../../news_article/dto/news-article.dto';[m
+[32m+[m[32mimport type { NewsTopicDto } from '../../news-topic/dto/news-topic.dto';[m
+[32m+[m
+[32m+[m[32m@Injectable()[m
+[32m+[m[32mexport class NewsArticlesFormatter {[m
+[32m+[m[32m    private readonly maxMessageLength: number = 4000;[m
+[32m+[m[32m    private readonly maxTitleLength: number = 300;[m
+[32m+[m[32m    private readonly maxTopicsLength: number = 500;[m
+[32m+[m
+[32m+[m[32m    format(article: NewsArticleDto): string {[m
+[32m+[m[32m        const title: string = this.truncate([m
+[32m+[m[32m            article.title,[m
+[32m+[m[32m            this.maxTitleLength,[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        const footer: string = `Оригинал: ${article.url}`;[m
+[32m+[m
+[32m+[m[32m        const baseMessage: string = `${title}\n\n${footer}`;[m
+[32m+[m
+[32m+[m[32m        if (baseMessage.length > this.maxMessageLength) {[m
+[32m+[m[32m            throw new Error([m
+[32m+[m[32m                `Article ${article.id}: title and URL exceed message limit`,[m
+[32m+[m[32m            );[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        const topicNames: string[] = article.topics.map([m
+[32m+[m[32m            (topic: NewsTopicDto): string => topic.name,[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        const uniqueTopicNames: string[] = [...new Set(topicNames)];[m
+[32m+[m
+[32m+[m[32m        const topicsText: string = uniqueTopicNames.length > 0[m
+[32m+[m[32m            ? `Темы: ${uniqueTopicNames.join(', ')}`[m
+[32m+[m[32m            : '';[m
+[32m+[m
+[32m+[m[32m        const availableTopicsLength: number = Math.max([m
+[32m+[m[32m            0,[m
+[32m+[m[32m            this.maxMessageLength - baseMessage.length - 2,[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        const topics: string = this.truncate([m
+[32m+[m[32m            topicsText,[m
+[32m+[m[32m            Math.min([m
+[32m+[m[32m                this.maxTopicsLength,[m
+[32m+[m[32m                availableTopicsLength,[m
+[32m+[m[32m            ),[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        const header: string = topics.length > 0[m
+[32m+[m[32m            ? `${title}\n\n${topics}`[m
+[32m+[m[32m            : title;[m
+[32m+[m
+[32m+[m[32m        const messageWithoutDescription: string =[m
+[32m+[m[32m            `${header}\n\n${footer}`;[m
+[32m+[m
+[32m+[m[32m        const availableDescriptionLength: number = Math.max([m
+[32m+[m[32m            0,[m
+[32m+[m[32m            this.maxMessageLength -[m
+[32m+[m[32m            messageWithoutDescription.length -[m
+[32m+[m[32m            2,[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        const description: string = this.truncate([m
+[32m+[m[32m            article.description,[m
+[32m+[m[32m            availableDescriptionLength,[m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        if (description.length === 0) {[m
+[32m+[m[32m            return messageWithoutDescription;[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        return `${header}\n\n${description}\n\n${footer}`;[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    private truncate(value: string, maxLength: number): string {[m
+[32m+[m[32m        if (maxLength <= 0) {[m
+[32m+[m[32m            return '';[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        if (value.length <= maxLength) {[m
+[32m+[m[32m            return value;[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        const suffix: string = '…';[m
+[32m+[m[32m        let end: number = maxLength - suffix.length;[m
+[32m+[m
+[32m+[m[32m        // Не разрываем пару UTF-16, например внутри эмодзи.[m
+[32m+[m[32m        if (end > 0) {[m
+[32m+[m[32m            const lastCodeUnit: number = value.charCodeAt(end - 1);[m
+[32m+[m
+[32m+[m[32m            if (lastCodeUnit >= 0xD800 && lastCodeUnit <= 0xDBFF) {[m
+[32m+[m[32m                end--;[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        return `${value.slice(0, end)}${suffix}`;[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/telegram-messaging/telegram-formatting.module.ts b/src/telegram-messaging/telegram-formatting.module.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..b84f226[m
+[1m--- /dev/null[m
+[1m+++ b/src/telegram-messaging/telegram-formatting.module.ts[m
+[36m@@ -0,0 +1,9 @@[m
+[32m+[m[32mimport { Module } from '@nestjs/common';[m
+[32m+[m
+[32m+[m[32mimport { NewsArticlesFormatter } from './formatters/news-articles.formatter';[m
+[32m+[m
+[32m+[m[32m@Module({[m
+[32m+[m[32m    providers: [NewsArticlesFormatter],[m
+[32m+[m[32m    exports: [NewsArticlesFormatter],[m
+[32m+[m[32m})[m
+[32m+[m[32mexport class TelegramFormattingModule {}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/telegram-user/telegram-users.controller.ts b/src/telegram-user/telegram-users.controller.ts[m
+[1mdeleted file mode 100644[m
+[1mindex d488a35..0000000[m
+[1m--- a/src/telegram-user/telegram-users.controller.ts[m
+[1m+++ /dev/null[m
+[36m@@ -1,4 +0,0 @@[m
+[31m-import {Controller} from "@nestjs/common";[m
+[31m-[m
+[31m-@Controller('telegram-users')[m
+[31m-export class TelegramUsersController{}[m
+\ No newline at end of file[m
+[1mdiff --git a/src/telegram-user/telegram-users.module.ts b/src/telegram-user/telegram-users.module.ts[m
+[1mindex 7b78534..611abdc 100644[m
+[1m--- a/src/telegram-user/telegram-users.module.ts[m
+[1m+++ b/src/telegram-user/telegram-users.module.ts[m
+[36m@@ -1,7 +1,6 @@[m
+ import { Module } from '@nestjs/common';[m
+ import { TypeOrmModule } from '@nestjs/typeorm';[m
+ import { TelegramUser } from './telegram-user.entity';[m
+[31m-import { TelegramUsersController } from './telegram-users.controller';[m
+ import { TelegramUsersRepository } from './telegram-users.repository';[m
+ import { TelegramUsersService } from './telegram-users.service';[m
+ [m
+[36m@@ -9,9 +8,6 @@[m [mimport { TelegramUsersService } from './telegram-users.service';[m
+     imports: [[m
+         TypeOrmModule.forFeature([TelegramUser]),[m
+     ],[m
+[31m-    controllers: [[m
+[31m-        TelegramUsersController,[m
+[31m-    ],[m
+     providers: [[m
+         TelegramUsersRepository,[m
+         TelegramUsersService,[m
+[1mdiff --git a/test/news-subscription/news-subscription.service.spec.ts b/test/news-subscription/news-subscription.service.spec.ts[m
+[1mindex 03ef73f..e84d2ee 100644[m
+[1m--- a/test/news-subscription/news-subscription.service.spec.ts[m
+[1m+++ b/test/news-subscription/news-subscription.service.spec.ts[m
+[36m@@ -5,6 +5,7 @@[m [mimport { NewsSubscriptionRepository } from '../../src/news-subscription/news-sub[m
+ import { TelegramUsersService } from '../../src/telegram-user/telegram-users.service';[m
+ import { NewsTopicsService } from '../../src/news-topic/news-topics.service';[m
+ import { NewsTopicsMapper } from '../../src/news-topic/dto/news-topics.mapper';[m
+[32m+[m[32mimport {NewsTopicDto} from "../../src/news-topic/dto/news-topic.dto";[m
+ [m
+ describe('Unsubscribe unknown user', (): void => {[m
+     it('does not create a user or write a subscription', async (): Promise<void> => {[m
+[36m@@ -18,7 +19,11 @@[m [mdescribe('Unsubscribe unknown user', (): void => {[m
+                 NewsSubscriptionService,[m
+                 NewsTopicsMapper,[m
+                 { provide: DataSource, useValue: {[m
+[31m-                    transaction: async (work: (manager: EntityManager) => Promise<void>): Promise<void> => work(source.manager),[m
+[32m+[m[32m                        transaction: async ([m
+[32m+[m[32m                            work: ([m
+[32m+[m[32m                                manager: EntityManager,[m
+[32m+[m[32m                            ) => Promise<NewsTopicDto | null>,[m
+[32m+[m[32m                        ): Promise<NewsTopicDto | null> => work(source.manager),[m
+                 } },[m
+                 { provide: TelegramUsersService, useValue: { findByTelegramId: findUser, getOrCreateByTelegramId: createUser } },[m
+                 { provide: NewsTopicsService, useValue: {} },[m
+[36m@@ -27,7 +32,10 @@[m [mdescribe('Unsubscribe unknown user', (): void => {[m
+         }).compile();[m
+         try {[m
+             const service: NewsSubscriptionService = module.get(NewsSubscriptionService);[m
+[31m-            await service.unsubscribe('12345', 1);[m
+[32m+[m[32m            const result: NewsTopicDto | null =[m
+[32m+[m[32m                await service.unsubscribe('12345', 1);[m
+[32m+[m
+[32m+[m[32m            expect(result).toBeNull();[m
+             expect(findUser).toHaveBeenCalledWith('12345', source.manager);[m
+             expect(createUser).not.toHaveBeenCalled();[m
+             expect(findSubscription).not.toHaveBeenCalled();[m
+[1mdiff --git a/test/news-topic/news-topics.service.spec.ts b/test/news-topic/news-topics.service.spec.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..77809a3[m
+[1m--- /dev/null[m
+[1m+++ b/test/news-topic/news-topics.service.spec.ts[m
+[36m@@ -0,0 +1,104 @@[m
+[32m+[m[32mimport { Test, TestingModule } from '@nestjs/testing';[m
+[32m+[m
+[32m+[m[32mimport { NewsTopic } from '../../src/news-topic/news-topic.entity';[m
+[32m+[m[32mimport { NewsTopicsService } from '../../src/news-topic/news-topics.service';[m
+[32m+[m[32mimport { NewsTopicsRepository } from '../../src/news-topic/news-topics.repository';[m
+[32m+[m[32mimport { NewsTopicsMapper } from '../../src/news-topic/dto/news-topics.mapper';[m
+[32m+[m
+[32m+[m[32mtype TopicsRepositoryMock = jest.Mocked<[m
+[32m+[m[32m    Pick<NewsTopicsRepository, 'addTopic' | 'findByNames'>[m
+[32m+[m[32m>;[m
+[32m+[m
+[32m+[m[32mdescribe('NewsTopicsService: импорт тем', (): void => {[m
+[32m+[m[32m    let testingModule: TestingModule;[m
+[32m+[m[32m    let service: NewsTopicsService;[m
+[32m+[m[32m    let repository: TopicsRepositoryMock;[m
+[32m+[m
+[32m+[m[32m    beforeEach(async (): Promise<void> => {[m
+[32m+[m[32m        repository = {[m
+[32m+[m[32m            addTopic: jest.fn(),[m
+[32m+[m[32m            findByNames: jest.fn(),[m
+[32m+[m[32m        };[m
+[32m+[m
+[32m+[m[32m        repository.addTopic.mockResolvedValue(undefined);[m
+[32m+[m[32m        repository.findByNames.mockResolvedValue([]);[m
+[32m+[m
+[32m+[m[32m        testingModule = await Test.createTestingModule({[m
+[32m+[m[32m            providers: [[m
+[32m+[m[32m                NewsTopicsService,[m
+[32m+[m[32m                NewsTopicsMapper,[m
+[32m+[m[32m                {[m
+[32m+[m[32m                    provide: NewsTopicsRepository,[m
+[32m+[m[32m                    useValue: repository,[m
+[32m+[m[32m                },[m
+[32m+[m[32m            ],[m
+[32m+[m[32m        }).compile();[m
+[32m+[m
+[32m+[m[32m        service = testingModule.get<NewsTopicsService>(NewsTopicsService);[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    afterEach(async (): Promise<void> => {[m
+[32m+[m[32m        await testingModule.close();[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('нормализует названия и удаляет дубликаты', async (): Promise<void> => {[m
+[32m+[m[32m        await service.getOrCreateByNames([[m
+[32m+[m[32m            ' Python ',[m
+[32m+[m[32m            'python',[m
+[32m+[m[32m            'REACT',[m
+[32m+[m[32m            ' react ',[m
+[32m+[m[32m            '',[m
+[32m+[m[32m            '   ',[m
+[32m+[m[32m        ]);[m
+[32m+[m
+[32m+[m[32m        const expectedNames: string[] = ['python', 'react'];[m
+[32m+[m
+[32m+[m[32m        expect(repository.addTopic).toHaveBeenCalledTimes(1);[m
+[32m+[m[32m        expect(repository.addTopic).toHaveBeenCalledWith([m
+[32m+[m[32m            expectedNames,[m
+[32m+[m[32m            undefined,[m
+[32m+[m[32m        );[m
+[32m+[m[32m        expect(repository.findByNames).toHaveBeenCalledWith([m
+[32m+[m[32m            expectedNames,[m
+[32m+[m[32m            undefined,[m
+[32m+[m[32m        );[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('возвращает и активные, и неактивные темы для связей статьи', async (): Promise<void> => {[m
+[32m+[m[32m        const activeTopic: NewsTopic = new NewsTopic();[m
+[32m+[m[32m        activeTopic.id = 1;[m
+[32m+[m[32m        activeTopic.name = 'python';[m
+[32m+[m[32m        activeTopic.isActive = true;[m
+[32m+[m
+[32m+[m[32m        const inactiveTopic: NewsTopic = new NewsTopic();[m
+[32m+[m[32m        inactiveTopic.id = 2;[m
+[32m+[m[32m        inactiveTopic.name = 'newtopic';[m
+[32m+[m[32m        inactiveTopic.isActive = false;[m
+[32m+[m
+[32m+[m[32m        repository.findByNames.mockResolvedValue([[m
+[32m+[m[32m            inactiveTopic,[m
+[32m+[m[32m            activeTopic,[m
+[32m+[m[32m        ]);[m
+[32m+[m
+[32m+[m[32m        const result: NewsTopic[] = await service.getOrCreateByNames([[m
+[32m+[m[32m            'python',[m
+[32m+[m[32m            'newtopic',[m
+[32m+[m[32m        ]);[m
+[32m+[m
+[32m+[m[32m        expect(result).toEqual([inactiveTopic, activeTopic]);[m
+[32m+[m[32m        expect(inactiveTopic.isActive).toBe(false);[m
+[32m+[m[32m        expect(activeTopic.isActive).toBe(true);[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('не обращается к репозиторию для пустых названий', async (): Promise<void> => {[m
+[32m+[m[32m        const result: NewsTopic[] = await service.getOrCreateByNames([[m
+[32m+[m[32m            '',[m
+[32m+[m[32m            ' ',[m
+[32m+[m[32m            '\t',[m
+[32m+[m[32m        ]);[m
+[32m+[m
+[32m+[m[32m        expect(result).toEqual([]);[m
+[32m+[m[32m        expect(repository.addTopic).not.toHaveBeenCalled();[m
+[32m+[m[32m        expect(repository.findByNames).not.toHaveBeenCalled();[m
+[32m+[m[32m    });[m
+[32m+[m[32m});[m
+[1mdiff --git a/test/telegram-messaging/formatters/news-articles.formatter.spec.ts b/test/telegram-messaging/formatters/news-articles.formatter.spec.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..d40e85f[m
+[1m--- /dev/null[m
+[1m+++ b/test/telegram-messaging/formatters/news-articles.formatter.spec.ts[m
+[36m@@ -0,0 +1,88 @@[m
+[32m+[m[32mimport { NewsArticlesFormatter } from '../../../src/telegram-messaging/formatters/news-articles.formatter';[m
+[32m+[m[32mimport type { NewsArticleDto } from '../../../src/news_article/dto/news-article.dto';[m
+[32m+[m
+[32m+[m[32mdescribe('NewsArticlesFormatter', (): void => {[m
+[32m+[m[32m    const formatter: NewsArticlesFormatter =[m
+[32m+[m[32m        new NewsArticlesFormatter();[m
+[32m+[m
+[32m+[m[32m    const createArticle = ([m
+[32m+[m[32m        overrides: Partial<NewsArticleDto> = {},[m
+[32m+[m[32m    ): NewsArticleDto => ({[m
+[32m+[m[32m        id: 1,[m
+[32m+[m[32m        title: 'Тестовая статья',[m
+[32m+[m[32m        description: 'Описание статьи',[m
+[32m+[m[32m        url: 'https://dev.to/example/article',[m
+[32m+[m[32m        topics: [[m
+[32m+[m[32m            { id: 1, name: 'programming' },[m
+[32m+[m[32m            { id: 2, name: 'python' },[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        ...overrides,[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('выводит название, несколько тем, описание и ссылку', (): void => {[m
+[32m+[m[32m        const article: NewsArticleDto = createArticle();[m
+[32m+[m
+[32m+[m[32m        const result: string = formatter.format(article);[m
+[32m+[m
+[32m+[m[32m        expect(result).toBe([m
+[32m+[m[32m            'Тестовая статья\n\n' +[m
+[32m+[m[32m            'Темы: programming, python\n\n' +[m
+[32m+[m[32m            'Описание статьи\n\n' +[m
+[32m+[m[32m            'Оригинал: https://dev.to/example/article',[m
+[32m+[m[32m        );[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('не выводит строку тем, если список пуст', (): void => {[m
+[32m+[m[32m        const article: NewsArticleDto = createArticle({[m
+[32m+[m[32m            topics: [],[m
+[32m+[m[32m        });[m
+[32m+[m
+[32m+[m[32m        const result: string = formatter.format(article);[m
+[32m+[m
+[32m+[m[32m        expect(result).toBe([m
+[32m+[m[32m            'Тестовая статья\n\n' +[m
+[32m+[m[32m            'Описание статьи\n\n' +[m
+[32m+[m[32m            'Оригинал: https://dev.to/example/article',[m
+[32m+[m[32m        );[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('сохраняет темы при пустом описании', (): void => {[m
+[32m+[m[32m        const article: NewsArticleDto = createArticle({[m
+[32m+[m[32m            description: '',[m
+[32m+[m[32m        });[m
+[32m+[m
+[32m+[m[32m        const result: string = formatter.format(article);[m
+[32m+[m
+[32m+[m[32m        expect(result).toBe([m
+[32m+[m[32m            'Тестовая статья\n\n' +[m
+[32m+[m[32m            'Темы: programming, python\n\n' +[m
+[32m+[m[32m            'Оригинал: https://dev.to/example/article',[m
+[32m+[m[32m        );[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('ограничивает длину сообщения и сохраняет ссылку', (): void => {[m
+[32m+[m[32m        const article: NewsArticleDto = createArticle({[m
+[32m+[m[32m            title: 'З'.repeat(1000),[m
+[32m+[m[32m            description: 'Д'.repeat(10000),[m
+[32m+[m[32m            topics: [[m
+[32m+[m[32m                { id: 1, name: 'т'.repeat(2000) },[m
+[32m+[m[32m            ],[m
+[32m+[m[32m        });[m
+[32m+[m
+[32m+[m[32m        const result: string = formatter.format(article);[m
+[32m+[m
+[32m+[m[32m        expect(result.length).toBeLessThanOrEqual(4000);[m
+[32m+[m[32m        expect(result).toContain('Темы: ');[m
+[32m+[m[32m        expect(result.endsWith(`Оригинал: ${article.url}`)).toBe(true);[m
+[32m+[m[32m    });[m
+[32m+[m
+[32m+[m[32m    it('отклоняет сообщение, если ссылка не помещается', (): void => {[m
+[32m+[m[32m        const article: NewsArticleDto = createArticle({[m
+[32m+[m[32m            url: `https://dev.to/${'a'.repeat(4000)}`,[m
+[32m+[m[32m        });[m
+[32m+[m
+[32m+[m[32m        expect((): string => formatter.format(article)).toThrow([m
+[32m+[m[32m            'title and URL exceed message limit',[m
+[32m+[m[32m        );[m
+[32m+[m[32m    });[m
+[32m+[m[32m});[m
+\ No newline at end of file[m

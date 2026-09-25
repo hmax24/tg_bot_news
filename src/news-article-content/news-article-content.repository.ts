@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import {EntityManager, IsNull, Repository, UpdateResult} from 'typeorm';
+import {EntityManager, IsNull, Repository, SelectQueryBuilder, UpdateResult} from 'typeorm';
 
 import { NewsArticleContent } from './news-article-content.entity';
 import { NewsArticleContentStatus } from './enums/news-article-content-status.enum';
+import {NewsSubscription} from "../news-subscription/news-subscription.entity";
 
 @Injectable()
 export class NewsArticleContentRepository {
@@ -124,19 +125,37 @@ export class NewsArticleContentRepository {
         const repository: Repository<NewsArticleContent> =
             manager.getRepository(NewsArticleContent);
 
-        const content: NewsArticleContent | null =
-            await repository.findOne({
-                where: {
-                    status: NewsArticleContentStatus.PENDING,
-                },
-                select: {
-                    id: true,
-                    articleId: true,
-                },
-                order: {
-                    id: 'ASC',
-                },
-            });
+        const query: SelectQueryBuilder<NewsArticleContent> =
+            repository.createQueryBuilder('content');
+
+        const subscribersQuery: SelectQueryBuilder<NewsSubscription> =
+            query
+                .subQuery()
+                .select('1')
+                .from(NewsSubscription, 'subscription')
+                .innerJoin('subscription.telegramUser', 'recipient')
+                .innerJoin('subscription.newsTopics', 'topic')
+                .innerJoin(
+                    'news_article_topics',
+                    'articleTopic',
+                    'articleTopic.news_topic_id = topic.id',
+                )
+                .where(
+                    'articleTopic.news_article_id = content.articleId',
+                )
+                .andWhere('subscription.isActive = :active')
+                .andWhere('recipient.isActive = :active')
+                .andWhere('topic.isActive = :active');
+
+        const content: NewsArticleContent | null = await query
+            .select(['content.id', 'content.articleId'])
+            .where('content.status = :status', {
+                status: NewsArticleContentStatus.PENDING,
+            })
+            .andWhere(`EXISTS ${subscribersQuery.getQuery()}`)
+            .setParameter('active', true)
+            .orderBy('content.id', 'ASC')
+            .getOne();
 
         return content?.articleId ?? null;
     }

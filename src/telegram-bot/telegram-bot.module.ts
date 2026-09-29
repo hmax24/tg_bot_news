@@ -5,6 +5,7 @@ import { TelegramBotUpdate } from './telegram-bot.update';
 import { NewsSubscriptionsModule } from '../news-subscription/news-subscriptions.module';
 import { NewsTopicsModule } from '../news-topic/news-topics.module';
 import { TelegramFormattingModule } from '../telegram-messaging/telegram-formatting.module';
+import {NewsSearchModule} from "../news-search/news-search.module";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { TelegramFormattingModule } from '../telegram-messaging/telegram-formatt
     NewsSubscriptionsModule,
     NewsTopicsModule,
     TelegramFormattingModule,
+    NewsSearchModule,
   ],
   providers: [TelegramBotService, TelegramBotUpdate],
 })

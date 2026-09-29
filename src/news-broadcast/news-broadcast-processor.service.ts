@@ -45,6 +45,7 @@ export class NewsBroadcastProcessor {
     );
 
     const message: TelegramMessageDto = this.formatter.formatSummary({
+      id: article.id,
       title: article.title,
       summary,
       url: article.url,

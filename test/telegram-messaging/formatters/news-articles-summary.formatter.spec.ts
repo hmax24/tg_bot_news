@@ -10,6 +10,7 @@ describe('NewsArticlesFormatter.formatSummary', (): void => {
         summary: string = 'Краткий пересказ.',
     ): NewsArticleSummaryMessageDto {
         return {
+            id: 2512,
             title: 'Новая версия библиотеки',
             summary,
             url: 'https://dev.to/test/article',
@@ -34,6 +35,10 @@ describe('NewsArticlesFormatter.formatSummary', (): void => {
             {
                 text: 'Оригинал статьи',
                 url: 'https://dev.to/test/article',
+            },
+            {
+                text: 'Найти похожие новости',
+                callbackData: 'similar:2512',
             },
         ]);
     });

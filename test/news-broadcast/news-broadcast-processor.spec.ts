@@ -143,7 +143,10 @@ describe('Broadcast processor', (): void => {
     await processor.processNext();
     expect(sendSpy).toHaveBeenCalledWith('100', {
       text: 'Title\n\nГотовый пересказ.',
-      buttons: [{ text: 'Оригинал статьи', url: 'https://example.com/5' }],
+        buttons: [
+          { text: 'Оригинал статьи', url: 'https://example.com/5' },
+          { text: 'Найти похожие новости', callbackData: 'similar:5' },
+        ],
     });
   });
 

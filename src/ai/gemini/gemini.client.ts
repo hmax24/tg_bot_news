@@ -19,9 +19,17 @@ export class GeminiClient {
         const apiKey: string =
             this.configService.getOrThrow<string>('GOOGLE_API_KEY');
 
+        const modelName: string = this.configService
+            .getOrThrow<string>('GEMINI_SUMMARY_MODEL')
+            .trim();
+
+        if (modelName.length === 0) {
+            throw new Error('GEMINI_SUMMARY_MODEL не должен быть пустым.');
+        }
+
         const model: ChatGoogle = new ChatGoogle({
             apiKey,
-            model: 'gemini-3.5-flash-lite',
+            model: modelName,
             maxRetries: 0,
         });
 

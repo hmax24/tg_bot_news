@@ -235,6 +235,103 @@ export class TelegramBotUpdate {
     }
   }
 
+  @Action(/^similar:.*$/)
+  async similarNews(@Ctx() ctx: Context): Promise<void> {
+    const callbackData: string | null = this.getCallbackData(ctx);
+
+    const match: RegExpExecArray | null = callbackData === null
+        ? null
+        : /^similar:([1-9]\d{0,9})$/.exec(callbackData);
+
+    const articleId: number = match === null
+        ? NaN
+        : Number(match[1]);
+
+    if (
+        !Number.isSafeInteger(articleId) ||
+        articleId <= 0 ||
+        articleId > 2_147_483_647
+    ) {
+      await ctx.answerCbQuery('Некорректная кнопка поиска.');
+      return;
+    }
+
+    await ctx.answerCbQuery('Ищу похожие новости…');
+
+    let messages: TelegramMessageDto[];
+
+    try {
+      messages = await this.telegramBotService
+          .getSimilarNewsMessages(articleId);
+    } catch {
+      this.logger.error(
+          `Similar news search failed: articleId=${articleId}`,
+      );
+
+      await ctx.reply(
+          'Не удалось найти похожие новости. Попробуй позже.',
+      );
+
+      return;
+    }
+
+    for (const message of messages) {
+      await ctx.reply(message.text, {
+        reply_markup: TelegramMessageKeyboard.create(
+            message.buttons,
+        ),
+      });
+    }
+  }
+
+  @Action(/^article:.*$/)
+  async openArticle(@Ctx() ctx: Context): Promise<void> {
+    const callbackData: string | null = this.getCallbackData(ctx);
+
+    const match: RegExpExecArray | null = callbackData === null
+        ? null
+        : /^article:([1-9]\d{0,9})$/.exec(callbackData);
+
+    const articleId: number = match === null
+        ? NaN
+        : Number(match[1]);
+
+    if (
+        !Number.isSafeInteger(articleId) ||
+        articleId <= 0 ||
+        articleId > 2_147_483_647
+    ) {
+      await ctx.answerCbQuery('Некорректная кнопка статьи.');
+      return;
+    }
+
+    await ctx.answerCbQuery();
+
+    let message: TelegramMessageDto;
+
+    try {
+      message = await this.telegramBotService.getArticleMessage(
+          articleId,
+      );
+    } catch {
+      this.logger.error(
+          `Failed to load article: articleId=${articleId}`,
+      );
+
+      await ctx.reply(
+          'Не удалось открыть статью. Попробуй позже.',
+      );
+
+      return;
+    }
+
+    await ctx.reply(message.text, {
+      reply_markup: TelegramMessageKeyboard.create(
+          message.buttons,
+      ),
+    });
+  }
+
   private getTelegramId(ctx: Context): string | null {
     if (!ctx.from?.id) {
       return null;

@@ -5,4 +5,5 @@ export interface NewsArticleSummaryMessageDto {
     summary: string;
     url: string;
     topics: NewsTopicDto[];
+    id: number;
 }

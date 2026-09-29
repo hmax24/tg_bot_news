@@ -9,6 +9,10 @@ import { NewsSubscriptionService } from '../news-subscription/news-subscription.
 import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';
 import { TelegramMessageDto } from '../telegram-messaging/dto/telegram-message.dto';
 import {NewsArticleSummaryDto} from "../news_article/dto/news-article-summary.dto";
+import {SimilarNewsGraph} from "../news-search/graphs/similar-news.graph";
+import {SimilarNewsGraphState} from "../news-search/graphs/similar-news.state";
+import {TelegramCallbackButtonDto} from "../telegram-messaging/dto/telegram-callback-button.dto";
+import {NewsSearchService} from "../news-search/news-search.service";
 
 @Injectable()
 export class TelegramBotService implements OnModuleInit {
@@ -19,6 +23,8 @@ export class TelegramBotService implements OnModuleInit {
     private readonly newsArticlesFormatter: NewsArticlesFormatter,
     private readonly newsTopicsService: NewsTopicsService,
     private readonly newsSubscriptionService: NewsSubscriptionService,
+    private readonly similarNewsGraph: SimilarNewsGraph,
+    private readonly newsSearchService: NewsSearchService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -130,11 +136,75 @@ export class TelegramBotService implements OnModuleInit {
     return articles.map(
         (article: NewsArticleSummaryDto): TelegramMessageDto =>
             this.newsArticlesFormatter.formatSummary({
+              id: article.id,
               title: article.title,
               summary: article.summary,
               url: article.url,
               topics: article.topics,
             }),
     );
+  }
+
+  async getSimilarNewsMessages(
+      articleId: number,
+  ): Promise<TelegramMessageDto[]> {
+    const result: SimilarNewsGraphState =
+        await this.similarNewsGraph.search(articleId);
+
+    if (!result.indexed) {
+      return [{
+        text: 'Эта новость ещё не готова для поиска похожих. Попробуй позже.',
+        buttons: [],
+      }];
+    }
+
+    if (result.articles.length === 0) {
+      return [{
+        text: 'В архиве пока нет похожих новостей.',
+        buttons: [],
+      }];
+    }
+
+    const buttons: TelegramCallbackButtonDto[] = result.articles
+        .slice(0, 3)
+        .map(
+            (article: NewsArticleSummaryDto): TelegramCallbackButtonDto => {
+              const title: string = article.title
+                  .replace(/\s+/g, ' ')
+                  .trim();
+
+              return {
+                text: title || `Статья №${article.id}`,
+                callbackData: `article:${article.id}`,
+              };
+            },
+        );
+
+    return [{
+      text: 'Похожие статьи:',
+      buttons,
+    }];
+  }
+
+  async getArticleMessage(
+      articleId: number,
+  ): Promise<TelegramMessageDto> {
+    const article: NewsArticleSummaryDto | null =
+        await this.newsSearchService.getArticle(articleId);
+
+    if (article === null) {
+      return {
+        text: 'Эта статья больше недоступна или её пересказ ещё не готов.',
+        buttons: [],
+      };
+    }
+
+    return this.newsArticlesFormatter.formatSummary({
+      id: article.id,
+      title: article.title,
+      summary: article.summary,
+      url: article.url,
+      topics: article.topics,
+    });
   }
 }

@@ -7,6 +7,7 @@ import {NewsTopic} from '../news-topic/news-topic.entity';
 import {TelegramUser} from '../telegram-user/telegram-user.entity';
 import {NewsBroadcast} from '../news-broadcast/news-broadcast.entity';
 import {NewsArticleContent} from "../news-article-content/news-article-content.entity";
+import {NewsArticleIndex} from "../news-indexing/news-article-index.entity";
 
 export function createDatabaseConfig(
     configService: ConfigService,
@@ -31,6 +32,7 @@ export function createDatabaseConfig(
             TelegramUser,
             NewsBroadcast,
             NewsArticleContent,
+            NewsArticleIndex,
         ],
         migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
         synchronize: false,

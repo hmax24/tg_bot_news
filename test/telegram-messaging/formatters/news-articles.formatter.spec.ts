@@ -35,6 +35,10 @@ describe('NewsArticlesFormatter', (): void => {
         text: 'Оригинал статьи',
         url: article.url,
       },
+      {
+        text: 'Найти похожие новости',
+        callbackData: 'similar:1',
+      },
     ]);
 
     expect(result.text).not.toContain(article.url);
@@ -58,7 +62,7 @@ describe('NewsArticlesFormatter', (): void => {
     const result: TelegramMessageDto = formatter.format(article);
 
     expect(result.text).toBe('Тестовая статья\n\nТемы: programming, python');
-    expect(result.buttons[0]?.url).toBe(article.url);
+    expect(result.buttons[0]).toMatchObject({ url: article.url });
   });
 
   it('ограничивает длину текста сообщения', (): void => {
@@ -71,7 +75,7 @@ describe('NewsArticlesFormatter', (): void => {
     const result: TelegramMessageDto = formatter.format(article);
 
     expect(result.text.length).toBeLessThanOrEqual(4000);
-    expect(result.buttons[0]?.url).toBe(article.url);
+    expect(result.buttons[0]).toMatchObject({ url: article.url });
   });
 
   it('формирует отдельную ссылку для каждой статьи', (): void => {
@@ -84,7 +88,9 @@ describe('NewsArticlesFormatter', (): void => {
       }),
     );
 
-    expect(first.buttons[0]?.url).toBe('https://dev.to/example/article');
-    expect(second.buttons[0]?.url).toBe('https://dev.to/example/second');
+    expect(first.buttons[0]).toMatchObject({ url: 'https://dev.to/example/article' });
+    expect(second.buttons[0]).toMatchObject({ url: 'https://dev.to/example/second' });
+    expect(first.buttons[1]).toMatchObject({ callbackData: 'similar:1' });
+    expect(second.buttons[1]).toMatchObject({ callbackData: 'similar:2' });
   });
 });

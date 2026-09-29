@@ -3,17 +3,26 @@ import type {
   InlineKeyboardMarkup,
 } from 'telegraf/types';
 
-import type { TelegramUrlButtonDto } from '../dto/telegram-url-button.dto';
+import type { TelegramButtonDto } from '../dto/telegram-button.dto';
 
 export class TelegramMessageKeyboard {
-  static create(buttons: TelegramUrlButtonDto[]): InlineKeyboardMarkup {
+  static create(
+      buttons: TelegramButtonDto[],
+  ): InlineKeyboardMarkup {
     const rows: InlineKeyboardButton[][] = buttons.map(
-      (button: TelegramUrlButtonDto): InlineKeyboardButton[] => [
-        {
-          text: button.text,
-          url: button.url,
+        (button: TelegramButtonDto): InlineKeyboardButton[] => {
+          if ('url' in button) {
+            return [{
+              text: button.text,
+              url: button.url,
+            }];
+          }
+
+          return [{
+            text: button.text,
+            callback_data: button.callbackData,
+          }];
         },
-      ],
     );
 
     return {

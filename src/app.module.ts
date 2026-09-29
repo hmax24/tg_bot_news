@@ -9,6 +9,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createDatabaseConfig } from './database/database.config';
 import { TelegramBotModule } from './telegram-bot/telegram-bot.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import {NewsIndexingModule} from "./news-indexing/news-indexing.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NewsSubscriptionsModule,
     NewsTopicsModule,
     TelegramUsersModule,
+    NewsIndexingModule,
     ScheduleModule.forRoot(),
     ConfigModule.forRoot({
       isGlobal: true,

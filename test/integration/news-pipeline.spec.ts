@@ -432,6 +432,9 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
         await subscriptions.subscribe('200', react.id);
         getLatestArticlesSpy.mockResolvedValue([article(1, ['python', 'react'])]);
         await service.importLatestArticles();
+        const importedArticle: NewsArticle = await source
+            .getRepository(NewsArticle)
+            .findOneByOrFail({ url: article(1).url });
         await completeImportedArticle(article(1).url);
         await subscriptions.unsubscribe('200', react.id);
         await subscriptions.subscribe('300', python.id); // Created after the job's upper bound.
@@ -462,6 +465,10 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
                     {
                         text: 'Оригинал статьи',
                         url: article(1).url,
+                    },
+                    {
+                        text: 'Найти похожие новости',
+                        callbackData: `similar:${importedArticle.id}`,
                     },
                 ],
             }),

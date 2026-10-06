@@ -16,10 +16,14 @@ import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';
 import { TopicCallbackValidator } from './validation/topic-callback.validator';
 import { TelegramMessageDto } from '../telegram-messaging/dto/telegram-message.dto';
 import { TelegramMessageKeyboard } from '../telegram-messaging/keyboards/telegram-message.keyboard';
+import {TelegramResearchService} from "./telegram-research.service";
 
 @Update()
 export class TelegramBotUpdate {
-  constructor(private readonly telegramBotService: TelegramBotService) {}
+  constructor(
+      private readonly telegramBotService: TelegramBotService,
+      private readonly telegramResearchService: TelegramResearchService,
+  ) {}
 
   private readonly logger: Logger = new Logger(TelegramBotUpdate.name);
 
@@ -348,5 +352,69 @@ export class TelegramBotUpdate {
     }
 
     return callbackQuery.data;
+  }
+
+  private researchInProgress: boolean = false;
+
+  @Command('research')
+  async research(@Ctx() ctx: Context): Promise<void> {
+    const message: Context['message'] = ctx.message;
+
+    if (!message || !('text' in message)) {
+      return;
+    }
+
+    const question: string = message.text
+        .replace(/^\/research(?:@\w+)?(?:\s+|$)/i, '')
+        .trim();
+
+    if (question.length === 0) {
+      await ctx.reply(
+          'Напиши вопрос после команды.\n\n' +
+          '/research Как в Sentinel используются языковые модели?',
+      );
+      return;
+    }
+
+    if (Array.from(question).length > 2000) {
+      await ctx.reply('Сократи вопрос до 2000 символов.');
+      return;
+    }
+
+    if (this.researchInProgress) {
+      await ctx.reply(
+          'Сейчас обрабатывается другой вопрос. Попробуй чуть позже.',
+      );
+      return;
+    }
+
+    this.researchInProgress = true;
+
+    try {
+      await ctx.reply('Ищу информацию в архиве…');
+
+      let result: TelegramMessageDto;
+
+      try {
+        result = await this.telegramResearchService.research(
+            question,
+        );
+      } catch {
+        this.logger.error('Archive research failed.');
+
+        await ctx.reply(
+            'Не удалось выполнить исследование. Попробуй позже.',
+        );
+        return;
+      }
+
+      await ctx.reply(result.text, {
+        reply_markup: TelegramMessageKeyboard.create(
+            result.buttons,
+        ),
+      });
+    } finally {
+      this.researchInProgress = false;
+    }
   }
 }

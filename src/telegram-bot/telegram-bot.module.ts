@@ -6,6 +6,8 @@ import { NewsSubscriptionsModule } from '../news-subscription/news-subscriptions
 import { NewsTopicsModule } from '../news-topic/news-topics.module';
 import { TelegramFormattingModule } from '../telegram-messaging/telegram-formatting.module';
 import {NewsSearchModule} from "../news-search/news-search.module";
+import {TelegramResearchService} from "./telegram-research.service";
+import {ResearchModule} from "../research/research.module";
 
 @Module({
   imports: [
@@ -14,7 +16,12 @@ import {NewsSearchModule} from "../news-search/news-search.module";
     NewsTopicsModule,
     TelegramFormattingModule,
     NewsSearchModule,
+    ResearchModule,
   ],
-  providers: [TelegramBotService, TelegramBotUpdate],
+  providers: [
+    TelegramBotService,
+    TelegramBotUpdate,
+    TelegramResearchService,
+  ],
 })
 export class TelegramBotModule {}

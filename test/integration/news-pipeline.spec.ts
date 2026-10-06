@@ -213,6 +213,7 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
     });
 
     it('rolls back topic activation without deleting existing topics and restores the old default', async (): Promise<void> => {
+        await source.undoLastMigration(); // news_ingestions
         await source.undoLastMigration(); // news_article_indexes
         await source.undoLastMigration(); // news_article_contents
         await source.undoLastMigration(); // sourceArticleId
@@ -226,6 +227,7 @@ integration('PostgreSQL migrations, import and broadcast', (): void => {
             (await source.getRepository(NewsTopic).findOneByOrFail({id: topic.id}))
                 .isActive,
         ).toBe(false);
+        await source.undoLastMigration(); // news_ingestions
         await source.undoLastMigration(); // news_article_indexes
         await source.undoLastMigration(); // news_article_contents
         await source.undoLastMigration(); // sourceArticleId

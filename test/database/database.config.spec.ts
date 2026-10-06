@@ -4,6 +4,7 @@ import type { DataSourceOptions } from 'typeorm';
 import { NewsBroadcast } from '../../src/news-broadcast/news-broadcast.entity';
 import {NewsArticleContent} from "../../src/news-article-content/news-article-content.entity";
 import { NewsArticleIndex } from '../../src/news-indexing/news-article-index.entity';
+import { NewsIngestion } from '../../src/ingestion/news-ingestion.entity';
 
 function config(port: string = '5432'): ConfigService {
   const service: ConfigService = new ConfigService({
@@ -42,7 +43,8 @@ describe('Database configuration', (): void => {
       synchronize: false,
       migrationsRun: false,
     });
-    expect(options.entities).toHaveLength(7);
+    expect(options.entities).toHaveLength(8);
+    expect(options.entities).toContain(NewsIngestion);
     expect(options.entities).toContain(NewsArticleIndex);
     expect(options.entities).toContain(NewsArticleContent);
     expect(options.entities).toContain(NewsBroadcast);

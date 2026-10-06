@@ -29,7 +29,7 @@ export class TelegramResearchService {
                 .trim() || 'Статья недоступна';
 
             buttons.push({
-                text: `[${articleId}] ${title}`,
+                text: title,
                 callbackData: `article:${articleId}`,
             });
         }

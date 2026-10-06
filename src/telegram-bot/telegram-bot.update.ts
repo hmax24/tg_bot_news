@@ -378,25 +378,22 @@ export class TelegramBotUpdate {
 
 
         if (question.length === 0) {
-            await
-                ctx
-                    .reply(
-                        'Напиши вопрос после команды.\n\n'
-                        +
-                        '/research Как в Sentinel используются языковые модели?'
-                        ,
-                    );
+            await this.researchButton(ctx);
             return;
         }
 
         if (Array.from(question).length > 2000) {
-            await ctx.reply('Сократи вопрос до 2000 символов.');
+            await ctx.reply(
+                'Сократи вопрос до 2000 символов.',
+                TelegramBotKeyboards.getMainMenuKeyboard(),
+            );
             return;
         }
 
         if (this.researchInProgress) {
             await ctx.reply(
                 'Сейчас обрабатывается другой вопрос. Попробуй чуть позже.',
+                TelegramBotKeyboards.getMainMenuKeyboard(),
             );
             return;
         }
@@ -404,7 +401,10 @@ export class TelegramBotUpdate {
         this.researchInProgress = true;
 
         try {
-            await ctx.reply('Ищу информацию в архиве…');
+            await ctx.reply(
+                'Ищу информацию в архиве…',
+                TelegramBotKeyboards.getMainMenuKeyboard(),
+            );
 
             let result: TelegramMessageDto;
 

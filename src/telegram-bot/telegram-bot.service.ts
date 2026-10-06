@@ -52,7 +52,11 @@ export class TelegramBotService implements OnModuleInit {
 /my_subscriptions — показать мои подписки
 /unsubscribe — отписаться от темы
 /latest — последние новости
+/research — задать вопрос по архиву новостей
 /help — помощь
+
+Для исследования нажми «🔎 Исследовать тему» или отправь вопрос командой:
+/research Как работают AI-агенты?
 `;
   }
 

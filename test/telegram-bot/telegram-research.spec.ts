@@ -7,6 +7,7 @@ import { TelegramBotService } from '../../src/telegram-bot/telegram-bot.service'
 import { ResearchGraph } from '../../src/research/graphs/research.graph';
 import { NewsSearchService } from '../../src/news-search/news-search.service';
 import type { TelegramMessageDto } from '../../src/telegram-messaging/dto/telegram-message.dto';
+import { TelegramBotKeyboards } from '../../src/telegram-bot/telegram-bot.keyboards';
 
 jest.mock('../../src/research/graphs/research.graph', (): object => ({ ResearchGraph: jest.fn() }));
 jest.mock('../../src/telegram-bot/telegram-bot.service', (): object => ({ TelegramBotService: jest.fn() }));
@@ -32,8 +33,8 @@ describe('TelegramResearchService', (): void => {
         research.mockResolvedValue({ answer: 'Ответ [8][3]', sourceArticleIds: [8, 3] });
         getArticle.mockResolvedValueOnce({ title: '  Первая\n статья ' }).mockResolvedValueOnce({ title: 'Вторая' });
         expect(await service.research('Вопрос')).toEqual({ text: 'Ответ [8][3]', buttons: [
-            { text: '[8] Первая статья', callbackData: 'article:8' },
-            { text: '[3] Вторая', callbackData: 'article:3' },
+            { text: 'Первая статья', callbackData: 'article:8' },
+            { text: 'Вторая', callbackData: 'article:3' },
         ] });
         expect(research).toHaveBeenCalledWith('Вопрос');
         expect(getArticle.mock.calls).toEqual([[8], [3]]);
@@ -48,7 +49,7 @@ describe('TelegramResearchService', (): void => {
     it('keeps a source reference when its article has disappeared', async (): Promise<void> => {
         research.mockResolvedValue({ answer: 'Ответ [8]', sourceArticleIds: [8] });
         getArticle.mockResolvedValue(null);
-        expect((await service.research('Вопрос')).buttons).toEqual([{ text: '[8] Статья недоступна', callbackData: 'article:8' }]);
+        expect((await service.research('Вопрос')).buttons).toEqual([{ text: 'Статья недоступна', callbackData: 'article:8' }]);
     });
 
     it('propagates graph errors without loading articles', async (): Promise<void> => {
@@ -72,7 +73,7 @@ describe('Telegram research command', (): void => {
         jest.resetAllMocks();
         jest.spyOn(Logger.prototype, 'error').mockImplementation((): void => {});
         reply.mockResolvedValue({});
-        research.mockResolvedValue({ text: 'Ответ [8]', buttons: [{ text: '[8] Статья', callbackData: 'article:8' }] });
+        research.mockResolvedValue({ text: 'Ответ [8]', buttons: [{ text: 'Статья', callbackData: 'article:8' }] });
         module = await Test.createTestingModule({ providers: [TelegramBotUpdate,
             { provide: TelegramBotService, useValue: {} },
             { provide: TelegramResearchService, useValue: { research } },
@@ -84,7 +85,8 @@ describe('Telegram research command', (): void => {
     it('parses addressed commands and sends the answer with source buttons', async (): Promise<void> => {
         await update.research(context('/research@news_bot  Вопрос\nо Sentinel '));
         expect(research).toHaveBeenCalledWith('Вопрос\nо Sentinel');
-        expect(reply).toHaveBeenLastCalledWith('Ответ [8]', { reply_markup: { inline_keyboard: [[{ text: '[8] Статья', callback_data: 'article:8' }]] } });
+        expect(reply).toHaveBeenNthCalledWith(1, 'Ищу информацию в архиве…', TelegramBotKeyboards.getMainMenuKeyboard());
+        expect(reply).toHaveBeenLastCalledWith('Ответ [8]', { reply_markup: { inline_keyboard: [[{ text: 'Статья', callback_data: 'article:8' }]] } });
     });
 
     it.each(['/research', '/research ' + 'я'.repeat(2001)])('rejects invalid input without API work %#', async (text: string): Promise<void> => {
@@ -101,7 +103,7 @@ describe('Telegram research command', (): void => {
         await Promise.resolve();
         await update.research(context('/research Второй'));
         expect(research).toHaveBeenCalledTimes(1);
-        expect(reply).toHaveBeenCalledWith('Сейчас обрабатывается другой вопрос. Попробуй чуть позже.');
+        expect(reply).toHaveBeenCalledWith('Сейчас обрабатывается другой вопрос. Попробуй чуть позже.', TelegramBotKeyboards.getMainMenuKeyboard());
         finish({ text: 'Ответ', buttons: [] });
         await first;
         await update.research(context('/research Третий'));

@@ -1,420 +1,478 @@
 import {
-  Action,
-  Command,
-  Ctx,
-  Help,
-  Hears,
-  Start,
-  Update,
+    Action,
+    Command,
+    Ctx,
+    Help,
+    Hears,
+    Start,
+    Update, On,
 } from 'nestjs-telegraf';
-import { Context } from 'telegraf';
-import { TelegramBotService } from './telegram-bot.service';
-import { TelegramBotKeyboards } from './telegram-bot.keyboards';
-import { BOT_BUTTONS, CALLBACK_PREFIXES } from './telegram-bot.constants';
-import { Logger } from '@nestjs/common';
-import type { NewsTopicDto } from '../news-topic/dto/news-topic.dto';
-import { TopicCallbackValidator } from './validation/topic-callback.validator';
-import { TelegramMessageDto } from '../telegram-messaging/dto/telegram-message.dto';
-import { TelegramMessageKeyboard } from '../telegram-messaging/keyboards/telegram-message.keyboard';
+import {Context} from 'telegraf';
+import {TelegramBotService} from './telegram-bot.service';
+import {TelegramBotKeyboards} from './telegram-bot.keyboards';
+import {BOT_BUTTONS, CALLBACK_PREFIXES, RESEARCH_QUESTION_PROMPT} from './telegram-bot.constants';
+import {Logger} from '@nestjs/common';
+import type {NewsTopicDto} from '../news-topic/dto/news-topic.dto';
+import {TopicCallbackValidator} from './validation/topic-callback.validator';
+import {TelegramMessageDto} from '../telegram-messaging/dto/telegram-message.dto';
+import {TelegramMessageKeyboard} from '../telegram-messaging/keyboards/telegram-message.keyboard';
 import {TelegramResearchService} from "./telegram-research.service";
 
 @Update()
 export class TelegramBotUpdate {
-  constructor(
-      private readonly telegramBotService: TelegramBotService,
-      private readonly telegramResearchService: TelegramResearchService,
-  ) {}
-
-  private readonly logger: Logger = new Logger(TelegramBotUpdate.name);
-
-  @Start()
-  async start(@Ctx() ctx: Context): Promise<void> {
-    const firstName: string | undefined = ctx.from?.first_name;
-
-    await ctx.reply(
-      this.telegramBotService.getWelcomeMessage(firstName),
-      TelegramBotKeyboards.getMainMenuKeyboard(),
-    );
-  }
-
-  @Help()
-  async help(@Ctx() ctx: Context): Promise<void> {
-    await ctx.reply(
-      this.telegramBotService.getHelpMessage(),
-      TelegramBotKeyboards.getMainMenuKeyboard(),
-    );
-  }
-
-  @Command('topics')
-  async topics(@Ctx() ctx: Context): Promise<void> {
-    const telegramId: string | null = this.getTelegramId(ctx);
-
-    if (telegramId === null) {
-      await ctx.reply('Не удалось определить пользователя.');
-      return;
-    }
-
-    const topics: NewsTopicDto[] = await this.telegramBotService.getTopics();
-
-    if (topics.length === 0) {
-      await ctx.reply('Доступных тем пока нет.');
-      return;
-    }
-
-    const subscriptions: NewsTopicDto[] =
-      await this.telegramBotService.getUserSubscriptions(telegramId);
-
-    const subscribedTopicIds: number[] = subscriptions.map(
-      (topic: NewsTopicDto): number => topic.id,
-    );
-
-    await ctx.reply(
-      'Выбери темы:',
-      TelegramBotKeyboards.getTopicsKeyboard(topics, subscribedTopicIds),
-    );
-  }
-
-  @Command('my_subscriptions')
-  async mySubscriptions(@Ctx() ctx: Context): Promise<void> {
-    const telegramId: string | null = this.getTelegramId(ctx);
-
-    if (telegramId === null) {
-      await ctx.reply('Не удалось определить пользователя.');
-      return;
-    }
-
-    const message: string =
-      await this.telegramBotService.getMySubscriptionsMessage(telegramId);
-
-    await ctx.reply(message);
-  }
-
-  @Command('unsubscribe')
-  async unsubscribe(@Ctx() ctx: Context): Promise<void> {
-    const telegramId: string | null = this.getTelegramId(ctx);
-
-    if (telegramId === null) {
-      await ctx.reply('Не удалось определить пользователя.');
-      return;
-    }
-
-    const topics: NewsTopicDto[] =
-      await this.telegramBotService.getUserSubscriptions(telegramId);
-
-    if (topics.length === 0) {
-      await ctx.reply('У тебя пока нет активных подписок.');
-      return;
-    }
-
-    await ctx.reply(
-      'Выбери тему для отписки:',
-      TelegramBotKeyboards.getUnsubscribeKeyboard(topics),
-    );
-  }
-
-  @Command('latest')
-  async latest(@Ctx() ctx: Context): Promise<void> {
-    let messages: TelegramMessageDto[];
-
-    try {
-      const telegramId: string | null = this.getTelegramId(ctx);
-
-      if (telegramId === null) {
-        await ctx.reply('Не удалось определить пользователя.');
-        return;
-      }
-      messages =
-        await this.telegramBotService.getLatestNewsMessages(telegramId);
-    } catch (error: unknown) {
-      const message: string =
-        error instanceof Error ? error.message : 'Unknown error';
-
-      this.logger.error(`Failed to load latest articles: ${message}`);
-
-      await ctx.reply('Не удалось загрузить новости. Попробуй позже.');
-
-      return;
-    }
-
-    for (let index: number = 0; index < messages.length; index++) {
-      const message: TelegramMessageDto = messages[index];
-
-      await ctx.reply(message.text, {
-        reply_markup: TelegramMessageKeyboard.create(message.buttons),
-      });
-    }
-  }
-
-  @Hears(BOT_BUTTONS.TOPICS)
-  async topicsButton(@Ctx() ctx: Context): Promise<void> {
-    await this.topics(ctx);
-  }
-
-  @Hears(BOT_BUTTONS.MY_SUBSCRIPTIONS)
-  async mySubscriptionsButton(@Ctx() ctx: Context): Promise<void> {
-    await this.mySubscriptions(ctx);
-  }
-
-  @Hears(BOT_BUTTONS.UNSUBSCRIBE)
-  async unsubscribeButton(@Ctx() ctx: Context): Promise<void> {
-    await this.unsubscribe(ctx);
-  }
-
-  @Hears(BOT_BUTTONS.HELP)
-  async helpButton(@Ctx() ctx: Context): Promise<void> {
-    await this.help(ctx);
-  }
-
-  @Action(/^subscribe_topic:(.+)$/)
-  async selectTopic(@Ctx() ctx: Context): Promise<void> {
-    const telegramId: string | null = this.getTelegramId(ctx);
-    const callbackData: string | null = this.getCallbackData(ctx);
-
-    const topicId: number | null =
-      callbackData === null
-        ? null
-        : TopicCallbackValidator.parseTopicId(
-            callbackData,
-            CALLBACK_PREFIXES.SUBSCRIBE_TOPIC,
-          );
-
-    if (telegramId === null || topicId === null) {
-      await ctx.answerCbQuery('Открой список тем заново.');
-      return;
-    }
-
-    await ctx.answerCbQuery();
-
-    try {
-      const message: string = await this.telegramBotService.subscribeToTopic(
-        telegramId,
-        topicId,
-      );
-
-      await ctx.reply(message);
-    } catch (error: unknown) {
-      const message: string =
-        error instanceof Error ? error.message : 'Unknown subscription error';
-
-      this.logger.error(message);
-
-      await ctx.reply(
-        'Не удалось подписаться. Обнови список тем и попробуй ещё раз.',
-      );
-    }
-  }
-
-  @Action(/^unsubscribe_topic:(.+)$/)
-  async unsubscribeFromTopic(@Ctx() ctx: Context): Promise<void> {
-    const telegramId: string | null = this.getTelegramId(ctx);
-    const callbackData: string | null = this.getCallbackData(ctx);
-
-    const topicId: number | null =
-      callbackData === null
-        ? null
-        : TopicCallbackValidator.parseTopicId(
-            callbackData,
-            CALLBACK_PREFIXES.UNSUBSCRIBE_TOPIC,
-          );
-
-    if (telegramId === null || topicId === null) {
-      await ctx.answerCbQuery('Открой список подписок заново.');
-      return;
-    }
-
-    await ctx.answerCbQuery();
-
-    try {
-      const message: string =
-        await this.telegramBotService.unsubscribeFromTopic(telegramId, topicId);
-
-      await ctx.reply(message);
-    } catch (error: unknown) {
-      const message: string =
-        error instanceof Error ? error.message : 'Unknown unsubscribe error';
-
-      this.logger.error(message);
-
-      await ctx.reply('Не удалось отписаться. Попробуй ещё раз.');
-    }
-  }
-
-  @Action(/^similar:.*$/)
-  async similarNews(@Ctx() ctx: Context): Promise<void> {
-    const callbackData: string | null = this.getCallbackData(ctx);
-
-    const match: RegExpExecArray | null = callbackData === null
-        ? null
-        : /^similar:([1-9]\d{0,9})$/.exec(callbackData);
-
-    const articleId: number = match === null
-        ? NaN
-        : Number(match[1]);
-
-    if (
-        !Number.isSafeInteger(articleId) ||
-        articleId <= 0 ||
-        articleId > 2_147_483_647
+    constructor(
+        private readonly telegramBotService: TelegramBotService,
+        private readonly telegramResearchService: TelegramResearchService,
     ) {
-      await ctx.answerCbQuery('Некорректная кнопка поиска.');
-      return;
     }
 
-    await ctx.answerCbQuery('Ищу похожие новости…');
+    private readonly logger: Logger = new Logger(TelegramBotUpdate.name);
 
-    let messages: TelegramMessageDto[];
-
-    try {
-      messages = await this.telegramBotService
-          .getSimilarNewsMessages(articleId);
-    } catch {
-      this.logger.error(
-          `Similar news search failed: articleId=${articleId}`,
-      );
-
-      await ctx.reply(
-          'Не удалось найти похожие новости. Попробуй позже.',
-      );
-
-      return;
-    }
-
-    for (const message of messages) {
-      await ctx.reply(message.text, {
-        reply_markup: TelegramMessageKeyboard.create(
-            message.buttons,
-        ),
-      });
-    }
-  }
-
-  @Action(/^article:.*$/)
-  async openArticle(@Ctx() ctx: Context): Promise<void> {
-    const callbackData: string | null = this.getCallbackData(ctx);
-
-    const match: RegExpExecArray | null = callbackData === null
-        ? null
-        : /^article:([1-9]\d{0,9})$/.exec(callbackData);
-
-    const articleId: number = match === null
-        ? NaN
-        : Number(match[1]);
-
-    if (
-        !Number.isSafeInteger(articleId) ||
-        articleId <= 0 ||
-        articleId > 2_147_483_647
-    ) {
-      await ctx.answerCbQuery('Некорректная кнопка статьи.');
-      return;
-    }
-
-    await ctx.answerCbQuery();
-
-    let message: TelegramMessageDto;
-
-    try {
-      message = await this.telegramBotService.getArticleMessage(
-          articleId,
-      );
-    } catch {
-      this.logger.error(
-          `Failed to load article: articleId=${articleId}`,
-      );
-
-      await ctx.reply(
-          'Не удалось открыть статью. Попробуй позже.',
-      );
-
-      return;
-    }
-
-    await ctx.reply(message.text, {
-      reply_markup: TelegramMessageKeyboard.create(
-          message.buttons,
-      ),
-    });
-  }
-
-  private getTelegramId(ctx: Context): string | null {
-    if (!ctx.from?.id) {
-      return null;
-    }
-
-    return String(ctx.from.id);
-  }
-
-  private getCallbackData(ctx: Context): string | null {
-    const callbackQuery: Context['callbackQuery'] = ctx.callbackQuery;
-
-    if (!callbackQuery || !('data' in callbackQuery)) {
-      return null;
-    }
-
-    return callbackQuery.data;
-  }
-
-  private researchInProgress: boolean = false;
-
-  @Command('research')
-  async research(@Ctx() ctx: Context): Promise<void> {
-    const message: Context['message'] = ctx.message;
-
-    if (!message || !('text' in message)) {
-      return;
-    }
-
-    const question: string = message.text
-        .replace(/^\/research(?:@\w+)?(?:\s+|$)/i, '')
-        .trim();
-
-    if (question.length === 0) {
-      await ctx.reply(
-          'Напиши вопрос после команды.\n\n' +
-          '/research Как в Sentinel используются языковые модели?',
-      );
-      return;
-    }
-
-    if (Array.from(question).length > 2000) {
-      await ctx.reply('Сократи вопрос до 2000 символов.');
-      return;
-    }
-
-    if (this.researchInProgress) {
-      await ctx.reply(
-          'Сейчас обрабатывается другой вопрос. Попробуй чуть позже.',
-      );
-      return;
-    }
-
-    this.researchInProgress = true;
-
-    try {
-      await ctx.reply('Ищу информацию в архиве…');
-
-      let result: TelegramMessageDto;
-
-      try {
-        result = await this.telegramResearchService.research(
-            question,
-        );
-      } catch {
-        this.logger.error('Archive research failed.');
+    @Start()
+    async start(@Ctx() ctx: Context): Promise<void> {
+        const firstName: string | undefined = ctx.from?.first_name;
 
         await ctx.reply(
-            'Не удалось выполнить исследование. Попробуй позже.',
+            this.telegramBotService.getWelcomeMessage(firstName),
+            TelegramBotKeyboards.getMainMenuKeyboard(),
         );
-        return;
-      }
-
-      await ctx.reply(result.text, {
-        reply_markup: TelegramMessageKeyboard.create(
-            result.buttons,
-        ),
-      });
-    } finally {
-      this.researchInProgress = false;
     }
-  }
+
+    @Help()
+    async help(@Ctx() ctx: Context): Promise<void> {
+        await ctx.reply(
+            this.telegramBotService.getHelpMessage(),
+            TelegramBotKeyboards.getMainMenuKeyboard(),
+        );
+    }
+
+    @Command('topics')
+    async topics(@Ctx() ctx: Context): Promise<void> {
+        const telegramId: string | null = this.getTelegramId(ctx);
+
+        if (telegramId === null) {
+            await ctx.reply('Не удалось определить пользователя.');
+            return;
+        }
+
+        const topics: NewsTopicDto[] = await this.telegramBotService.getTopics();
+
+        if (topics.length === 0) {
+            await ctx.reply('Доступных тем пока нет.');
+            return;
+        }
+
+        const subscriptions: NewsTopicDto[] =
+            await this.telegramBotService.getUserSubscriptions(telegramId);
+
+        const subscribedTopicIds: number[] = subscriptions.map(
+            (topic: NewsTopicDto): number => topic.id,
+        );
+
+        await ctx.reply(
+            'Выбери темы:',
+            TelegramBotKeyboards.getTopicsKeyboard(topics, subscribedTopicIds),
+        );
+    }
+
+    @Command('my_subscriptions')
+    async mySubscriptions(@Ctx() ctx: Context): Promise<void> {
+        const telegramId: string | null = this.getTelegramId(ctx);
+
+        if (telegramId === null) {
+            await ctx.reply('Не удалось определить пользователя.');
+            return;
+        }
+
+        const message: string =
+            await this.telegramBotService.getMySubscriptionsMessage(telegramId);
+
+        await ctx.reply(message);
+    }
+
+    @Command('unsubscribe')
+    async unsubscribe(@Ctx() ctx: Context): Promise<void> {
+        const telegramId: string | null = this.getTelegramId(ctx);
+
+        if (telegramId === null) {
+            await ctx.reply('Не удалось определить пользователя.');
+            return;
+        }
+
+        const topics: NewsTopicDto[] =
+            await this.telegramBotService.getUserSubscriptions(telegramId);
+
+        if (topics.length === 0) {
+            await ctx.reply('У тебя пока нет активных подписок.');
+            return;
+        }
+
+        await ctx.reply(
+            'Выбери тему для отписки:',
+            TelegramBotKeyboards.getUnsubscribeKeyboard(topics),
+        );
+    }
+
+    @Command('latest')
+    async latest(@Ctx() ctx: Context): Promise<void> {
+        let messages: TelegramMessageDto[];
+
+        try {
+            const telegramId: string | null = this.getTelegramId(ctx);
+
+            if (telegramId === null) {
+                await ctx.reply('Не удалось определить пользователя.');
+                return;
+            }
+            messages =
+                await this.telegramBotService.getLatestNewsMessages(telegramId);
+        } catch (error: unknown) {
+            const message: string =
+                error instanceof Error ? error.message : 'Unknown error';
+
+            this.logger.error(`Failed to load latest articles: ${message}`);
+
+            await ctx.reply('Не удалось загрузить новости. Попробуй позже.');
+
+            return;
+        }
+
+        for (let index: number = 0; index < messages.length; index++) {
+            const message: TelegramMessageDto = messages[index];
+
+            await ctx.reply(message.text, {
+                reply_markup: TelegramMessageKeyboard.create(message.buttons),
+            });
+        }
+    }
+
+    @Hears(BOT_BUTTONS.TOPICS)
+    async topicsButton(@Ctx() ctx: Context): Promise<void> {
+        await this.topics(ctx);
+    }
+
+    @Hears(BOT_BUTTONS.MY_SUBSCRIPTIONS)
+    async mySubscriptionsButton(@Ctx() ctx: Context): Promise<void> {
+        await this.mySubscriptions(ctx);
+    }
+
+    @Hears(BOT_BUTTONS.UNSUBSCRIBE)
+    async unsubscribeButton(@Ctx() ctx: Context): Promise<void> {
+        await this.unsubscribe(ctx);
+    }
+
+    @Hears(BOT_BUTTONS.HELP)
+    async helpButton(@Ctx() ctx: Context): Promise<void> {
+        await this.help(ctx);
+    }
+
+    @Action(/^subscribe_topic:(.+)$/)
+    async selectTopic(@Ctx() ctx: Context): Promise<void> {
+        const telegramId: string | null = this.getTelegramId(ctx);
+        const callbackData: string | null = this.getCallbackData(ctx);
+
+        const topicId: number | null =
+            callbackData === null
+                ? null
+                : TopicCallbackValidator.parseTopicId(
+                    callbackData,
+                    CALLBACK_PREFIXES.SUBSCRIBE_TOPIC,
+                );
+
+        if (telegramId === null || topicId === null) {
+            await ctx.answerCbQuery('Открой список тем заново.');
+            return;
+        }
+
+        await ctx.answerCbQuery();
+
+        try {
+            const message: string = await this.telegramBotService.subscribeToTopic(
+                telegramId,
+                topicId,
+            );
+
+            await ctx.reply(message);
+        } catch (error: unknown) {
+            const message: string =
+                error instanceof Error ? error.message : 'Unknown subscription error';
+
+            this.logger.error(message);
+
+            await ctx.reply(
+                'Не удалось подписаться. Обнови список тем и попробуй ещё раз.',
+            );
+        }
+    }
+
+    @Action(/^unsubscribe_topic:(.+)$/)
+    async unsubscribeFromTopic(@Ctx() ctx: Context): Promise<void> {
+        const telegramId: string | null = this.getTelegramId(ctx);
+        const callbackData: string | null = this.getCallbackData(ctx);
+
+        const topicId: number | null =
+            callbackData === null
+                ? null
+                : TopicCallbackValidator.parseTopicId(
+                    callbackData,
+                    CALLBACK_PREFIXES.UNSUBSCRIBE_TOPIC,
+                );
+
+        if (telegramId === null || topicId === null) {
+            await ctx.answerCbQuery('Открой список подписок заново.');
+            return;
+        }
+
+        await ctx.answerCbQuery();
+
+        try {
+            const message: string =
+                await this.telegramBotService.unsubscribeFromTopic(telegramId, topicId);
+
+            await ctx.reply(message);
+        } catch (error: unknown) {
+            const message: string =
+                error instanceof Error ? error.message : 'Unknown unsubscribe error';
+
+            this.logger.error(message);
+
+            await ctx.reply('Не удалось отписаться. Попробуй ещё раз.');
+        }
+    }
+
+    @Action(/^similar:.*$/)
+    async similarNews(@Ctx() ctx: Context): Promise<void> {
+        const callbackData: string | null = this.getCallbackData(ctx);
+
+        const match: RegExpExecArray | null = callbackData === null
+            ? null
+            : /^similar:([1-9]\d{0,9})$/.exec(callbackData);
+
+        const articleId: number = match === null
+            ? NaN
+            : Number(match[1]);
+
+        if (
+            !Number.isSafeInteger(articleId) ||
+            articleId <= 0 ||
+            articleId > 2_147_483_647
+        ) {
+            await ctx.answerCbQuery('Некорректная кнопка поиска.');
+            return;
+        }
+
+        await ctx.answerCbQuery('Ищу похожие новости…');
+
+        let messages: TelegramMessageDto[];
+
+        try {
+            messages = await this.telegramBotService
+                .getSimilarNewsMessages(articleId);
+        } catch {
+            this.logger.error(
+                `Similar news search failed: articleId=${articleId}`,
+            );
+
+            await ctx.reply(
+                'Не удалось найти похожие новости. Попробуй позже.',
+            );
+
+            return;
+        }
+
+        for (const message of messages) {
+            await ctx.reply(message.text, {
+                reply_markup: TelegramMessageKeyboard.create(
+                    message.buttons,
+                ),
+            });
+        }
+    }
+
+    @Action(/^article:.*$/)
+    async openArticle(@Ctx() ctx: Context): Promise<void> {
+        const callbackData: string | null = this.getCallbackData(ctx);
+
+        const match: RegExpExecArray | null = callbackData === null
+            ? null
+            : /^article:([1-9]\d{0,9})$/.exec(callbackData);
+
+        const articleId: number = match === null
+            ? NaN
+            : Number(match[1]);
+
+        if (
+            !Number.isSafeInteger(articleId) ||
+            articleId <= 0 ||
+            articleId > 2_147_483_647
+        ) {
+            await ctx.answerCbQuery('Некорректная кнопка статьи.');
+            return;
+        }
+
+        await ctx.answerCbQuery();
+
+        let message: TelegramMessageDto;
+
+        try {
+            message = await this.telegramBotService.getArticleMessage(
+                articleId,
+            );
+        } catch {
+            this.logger.error(
+                `Failed to load article: articleId=${articleId}`,
+            );
+
+            await ctx.reply(
+                'Не удалось открыть статью. Попробуй позже.',
+            );
+
+            return;
+        }
+
+        await ctx.reply(message.text, {
+            reply_markup: TelegramMessageKeyboard.create(
+                message.buttons,
+            ),
+        });
+    }
+
+    private getTelegramId(ctx: Context): string | null {
+        if (!ctx.from?.id) {
+            return null;
+        }
+
+        return String(ctx.from.id);
+    }
+
+    private getCallbackData(ctx: Context): string | null {
+        const callbackQuery: Context['callbackQuery'] = ctx.callbackQuery;
+
+        if (!callbackQuery || !('data' in callbackQuery)) {
+            return null;
+        }
+
+        return callbackQuery.data;
+    }
+
+    private researchInProgress: boolean = false;
+
+    @Command('research')
+    async research(@Ctx() ctx: Context): Promise<void> {
+        const message: Context['message'] = ctx.message;
+
+        if (!message || !('text' in message)) {
+            return;
+        }
+
+        const question: string = message.text
+            .replace(/^\/research(?:@\w+)?(?:\s+|$)/i, '')
+            .trim();
+        await this.runResearch(ctx, question);
+    }
+
+    private async runResearch(
+        ctx: Context,
+        question: string,
+    ): Promise<void> {
+
+
+        if (question.length === 0) {
+            await
+                ctx
+                    .reply(
+                        'Напиши вопрос после команды.\n\n'
+                        +
+                        '/research Как в Sentinel используются языковые модели?'
+                        ,
+                    );
+            return;
+        }
+
+        if (Array.from(question).length > 2000) {
+            await ctx.reply('Сократи вопрос до 2000 символов.');
+            return;
+        }
+
+        if (this.researchInProgress) {
+            await ctx.reply(
+                'Сейчас обрабатывается другой вопрос. Попробуй чуть позже.',
+            );
+            return;
+        }
+
+        this.researchInProgress = true;
+
+        try {
+            await ctx.reply('Ищу информацию в архиве…');
+
+            let result: TelegramMessageDto;
+
+            try {
+                result = await this.telegramResearchService.research(
+                    question,
+                );
+            } catch {
+                this.logger.error('Archive research failed.');
+
+                await ctx.reply(
+                    'Не удалось выполнить исследование. Попробуй позже.',
+                );
+                return;
+            }
+
+            await ctx.reply(result.text, {
+                reply_markup: TelegramMessageKeyboard.create(
+                    result.buttons,
+                ),
+            });
+        } finally {
+            this.researchInProgress = false;
+        }
+    }
+
+    @Hears(BOT_BUTTONS.RESEARCH)
+    async researchButton(@Ctx() ctx: Context): Promise<void> {
+        await ctx.reply(RESEARCH_QUESTION_PROMPT, {
+            reply_markup: {
+                force_reply: true,
+                selective: true,
+                input_field_placeholder: 'Например: как работают AI-агенты?',
+            },
+        });
+    }
+
+    @On('text')
+    async researchQuestion(@Ctx() ctx: Context): Promise<void> {
+        const message: Context['message'] = ctx.message;
+
+        if (!message || !('text' in message)) {
+            return;
+        }
+
+        const question: string = message.text.trim();
+
+        // Команды и кнопки меню не считаем вопросами.
+        if (
+            question.startsWith('/') ||
+            Object.values(BOT_BUTTONS).some(
+                (button: string): boolean => button === question,
+            )
+        ) {
+            return;
+        }
+
+        const repliedMessage = message.reply_to_message;
+
+        if (
+            !repliedMessage ||
+            repliedMessage.from?.id !== ctx.botInfo.id ||
+            !('text' in repliedMessage) ||
+            repliedMessage.text !== RESEARCH_QUESTION_PROMPT
+        ) {
+            return;
+        }
+
+        await this.runResearch(ctx, question);
+    }
 }
